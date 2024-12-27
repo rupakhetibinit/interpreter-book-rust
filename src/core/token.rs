@@ -1,4 +1,4 @@
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TokenType {
     Illegal,
     Eof,
@@ -21,17 +21,17 @@ pub enum TokenType {
     Let,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct Token<'a> {
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct Token {
     pub token_type: TokenType,
-    pub literal: &'a str,
+    pub literal: String,
 }
 
-impl<'a> Token<'a> {
-    pub fn new(token_type: TokenType, literal: &'a str) -> Self {
+impl Token {
+    pub fn new(token_type: TokenType, literal: &str) -> Self {
         Self {
             token_type,
-            literal,
+            literal: literal.to_string(),
         }
     }
 }
