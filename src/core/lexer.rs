@@ -101,7 +101,7 @@ impl Lexer {
     }
 
     fn skip_whitespace(&mut self) {
-        while self.ch.is_whitespace() {
+        while self.ch.is_whitespace() || self.ch == '\t' || self.ch == '\r' || self.ch == '\n' {
             self.read_char();
         }
     }
@@ -130,7 +130,7 @@ impl Lexer {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::token::{self, TokenType};
+    use crate::core::token::TokenType;
 
     use super::Lexer;
 
