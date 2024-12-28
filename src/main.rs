@@ -7,6 +7,8 @@ fn main() {
     let mut args = std::env::args();
     args.next();
 
+    println!("Hello! This is the Monkey programming language written in Rust!");
+    println!("Feel free to type in commands.");
     if args.next().unwrap() == "repl" {
         loop {
             let mut input = String::new();
