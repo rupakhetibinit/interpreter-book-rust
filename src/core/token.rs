@@ -7,8 +7,13 @@ pub enum TokenType {
     Int,   // 1343456
     // Operators
     Assign,
-
     Plus,
+    Minus,
+    Bang,
+    Asterisk,
+    Slash,
+    Lt,
+    Gt,
     // Delimiters
     Comma,
     Semicolon,
@@ -19,6 +24,13 @@ pub enum TokenType {
     // Keywords
     Function,
     Let,
+    True,
+    False,
+    Else,
+    If,
+    Return,
+    Eq,
+    NotEq,
 }
 
 #[derive(Debug, Eq, PartialEq, Clone)]

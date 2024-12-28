@@ -14,7 +14,7 @@ impl Lexer {
             input,
             position: 0,
             read_position: 0,
-            ch: '\0',
+            ch: 0 as char,
         };
 
         lexer.read_char();
@@ -35,10 +35,30 @@ impl Lexer {
         self.skip_whitespace();
 
         let token = match self.ch {
-            '=' => Token::new(TokenType::Assign, "="),
+            '=' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::Eq, "==")
+                } else {
+                    Token::new(TokenType::Assign, "=")
+                }
+            }
             '{' => Token::new(TokenType::LBrace, "{"),
             '}' => Token::new(TokenType::RBrace, "}"),
             '+' => Token::new(TokenType::Plus, "+"),
+            '-' => Token::new(TokenType::Minus, "-"),
+            '<' => Token::new(TokenType::Lt, "<"),
+            '>' => Token::new(TokenType::Gt, ">"),
+            '!' => {
+                if self.peek_char() == '=' {
+                    self.read_char();
+                    Token::new(TokenType::NotEq, "!=")
+                } else {
+                    Token::new(TokenType::Bang, "!")
+                }
+            }
+            '*' => Token::new(TokenType::Asterisk, "*"),
+            '/' => Token::new(TokenType::Slash, "/"),
             ',' => Token::new(TokenType::Comma, ","),
             ';' => Token::new(TokenType::Semicolon, ";"),
             '(' => Token::new(TokenType::LParen, "("),
@@ -49,7 +69,7 @@ impl Lexer {
                     let literal = self.read_identifier();
                     let tok_type = self.lookup_identifier(&literal);
                     return Token::new(tok_type, &literal);
-                } else if self.ch.is_numeric() {
+                } else if self.ch.is_ascii_digit() {
                     let literal = self.read_number();
                     return Token::new(TokenType::Int, &literal);
                 }
@@ -90,14 +110,27 @@ impl Lexer {
         match ident {
             "fn" => TokenType::Function,
             "let" => TokenType::Let,
+            "true" => TokenType::True,
+            "false" => TokenType::False,
+            "else" => TokenType::Else,
+            "if" => TokenType::If,
+            "return" => TokenType::Return,
             _ => TokenType::Ident,
+        }
+    }
+
+    fn peek_char(&self) -> char {
+        if self.read_position >= self.input.len() {
+            0 as char
+        } else {
+            self.input.chars().nth(self.read_position).unwrap()
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::core::token::TokenType;
+    use crate::core::token::{self, TokenType};
 
     use super::Lexer;
 
@@ -109,7 +142,16 @@ let add = fn(x, y) {
 x + y;
 };
 let result = add(five, ten);
-";
+!-/*5;
+5 < 10 > 5;
+if (5 < 10) {
+return true;
+} else {
+return false;
+}
+if (x == 2) {
+return true;
+}";
         let tests = vec![
             (TokenType::Let, "let"),
             (TokenType::Ident, "five"),
@@ -147,6 +189,46 @@ let result = add(five, ten);
             (TokenType::Ident, "ten"),
             (TokenType::RParen, ")"),
             (TokenType::Semicolon, ";"),
+            (TokenType::Bang, "!"),
+            (TokenType::Minus, "-"),
+            (TokenType::Slash, "/"),
+            (TokenType::Asterisk, "*"),
+            (TokenType::Int, "5"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::Int, "5"),
+            (TokenType::Lt, "<"),
+            (TokenType::Int, "10"),
+            (TokenType::Gt, ">"),
+            (TokenType::Int, "5"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::If, "if"),
+            (TokenType::LParen, "("),
+            (TokenType::Int, "5"),
+            (TokenType::Lt, "<"),
+            (TokenType::Int, "10"),
+            (TokenType::RParen, ")"),
+            (TokenType::LBrace, "{"),
+            (TokenType::Return, "return"),
+            (TokenType::True, "true"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::RBrace, "}"),
+            (TokenType::Else, "else"),
+            (TokenType::LBrace, "{"),
+            (TokenType::Return, "return"),
+            (TokenType::False, "false"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::RBrace, "}"),
+            (TokenType::If, "if"),
+            (TokenType::LParen, "("),
+            (TokenType::Ident, "x"),
+            (TokenType::Eq, "=="),
+            (TokenType::Int, "2"),
+            (TokenType::RParen, ")"),
+            (TokenType::LBrace, "{"),
+            (TokenType::Return, "return"),
+            (TokenType::True, "true"),
+            (TokenType::Semicolon, ";"),
+            (TokenType::RBrace, "}"),
             (TokenType::Eof, ""),
         ];
 
