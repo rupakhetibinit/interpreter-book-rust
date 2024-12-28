@@ -33,6 +33,7 @@ impl Lexer {
 
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
+
         let token = match self.ch {
             '=' => Token::new(TokenType::Assign, "="),
             '{' => Token::new(TokenType::LBrace, "{"),
@@ -42,20 +43,22 @@ impl Lexer {
             ';' => Token::new(TokenType::Semicolon, ";"),
             '(' => Token::new(TokenType::LParen, "("),
             ')' => Token::new(TokenType::RParen, ")"),
-            '\0' => Token::new(TokenType::Eof, ""),
-            c if c.is_alphabetic() => {
-                let literal = self.read_identifier();
-                let token_type = self.lookup_identifier(&literal);
-                return Token::new(token_type, &literal);
+            '\u{0}' => Token::new(TokenType::Eof, ""),
+            _ => {
+                if self.ch.is_alphabetic() || self.ch == '_' {
+                    let literal = self.read_identifier();
+                    let tok_type = self.lookup_identifier(&literal);
+                    return Token::new(tok_type, &literal);
+                } else if self.ch.is_numeric() {
+                    let literal = self.read_number();
+                    return Token::new(TokenType::Int, &literal);
+                }
+
+                Token::new(
+                    TokenType::Illegal,
+                    &self.input[self.position..=self.position],
+                )
             }
-            c if c.is_ascii_digit() => {
-                let literal = self.read_number();
-                return Token::new(TokenType::Int, &literal);
-            }
-            _ => Token::new(
-                TokenType::Illegal,
-                &self.input[self.position..=self.position],
-            ),
         };
         self.read_char();
         token
@@ -63,7 +66,7 @@ impl Lexer {
 
     fn read_identifier(&mut self) -> String {
         let start_position = self.position;
-        while self.ch.is_alphabetic() {
+        while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
         }
         self.input[start_position..self.position].to_string()
