@@ -1,3 +1,4 @@
+#[allow(unused, dead_code)]
 use core::{lexer::Lexer, token::TokenType};
 use std::io::{Write, stdin};
 

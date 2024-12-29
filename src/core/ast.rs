@@ -1,8 +1,9 @@
+#[allow(unused, dead_code)]
 use core::str;
 
 use super::{
     lexer::Lexer,
-    token::{self, Token, TokenType},
+    token::{Token, TokenType},
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -14,19 +15,23 @@ pub enum Node {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
-    Let(Let),
+    LetStatement { token: Token, name: Identifier },
+    ReturnStatement { token: Token, value: Expression },
 }
 
 impl Statement {
     fn token_literal(&self) -> &str {
         match self {
-            Statement::Let(stmt) => stmt.token.literal.as_str(),
+            Statement::LetStatement { token, .. } => &token.literal,
+            Statement::ReturnStatement { token, .. } => &token.literal,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression {}
+pub enum Expression {
+    NONE,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program {
@@ -71,6 +76,7 @@ pub struct Parser {
     lexer: Lexer,
     curr_token: Token,
     peek_token: Token,
+    errors: Vec<String>,
 }
 
 impl Parser {
@@ -79,6 +85,7 @@ impl Parser {
             lexer,
             curr_token: Token::default(),
             peek_token: Token::default(),
+            errors: vec![],
         };
 
         // Read 2 tokens so curr_token and next_token are both set
@@ -96,7 +103,7 @@ impl Parser {
     pub fn parse_program(&mut self) -> Option<Program> {
         let mut program = Program::new();
 
-        while self.curr_token.token_type != TokenType::Eof {
+        while !self.curr_token_is(TokenType::Eof) {
             if let Some(stmt) = self.parse_statement() {
                 program.statements.push(stmt);
             }
@@ -108,8 +115,26 @@ impl Parser {
     pub fn parse_statement(&mut self) -> Option<Statement> {
         match self.curr_token.token_type {
             TokenType::Let => self.parse_let_statement(),
+            TokenType::Return => self.parse_return_statement(),
             _ => None,
         }
+    }
+
+    pub fn parse_return_statement(&mut self) -> Option<Statement> {
+        if !self.expect_peek(TokenType::Int) {
+            return None;
+        }
+
+        let stmt = Statement::ReturnStatement {
+            token: self.curr_token.clone(),
+            value: Expression::NONE,
+        };
+
+        while !self.curr_token_is(TokenType::Semicolon) {
+            self.next_token();
+        }
+
+        Some(stmt)
     }
 
     pub fn parse_let_statement(&mut self) -> Option<Statement> {
@@ -117,13 +142,13 @@ impl Parser {
             return None;
         }
 
-        let stmt = Statement::Let(Let {
+        let stmt = Statement::LetStatement {
             name: Identifier {
                 token: self.curr_token.clone(),
                 value: self.curr_token.literal.clone(),
             },
             token: self.curr_token.clone(),
-        });
+        };
 
         if !self.expect_peek(TokenType::Assign) {
             return None;
@@ -145,18 +170,32 @@ impl Parser {
     }
 
     pub fn expect_peek(&mut self, token_type: TokenType) -> bool {
-        if self.peek_token_is(token_type) {
+        if self.peek_token_is(token_type.clone()) {
             self.next_token();
-            return true;
+            true
+        } else {
+            self.peek_error(token_type);
+            false
         }
-        false
+    }
+
+    pub fn errors(&self) -> Vec<String> {
+        self.errors.clone()
+    }
+
+    pub fn peek_error(&mut self, token: TokenType) {
+        let message = format!(
+            "expected next token to be {:?}, got {:?} instead",
+            token, self.peek_token.token_type
+        );
+        self.errors.push(message);
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*; // Assuming you have a similar module structure to Go's imports
-    use crate::core::ast::{Let, Program, Statement};
+    use super::*;
+    use crate::core::ast::Statement;
     use crate::core::lexer::Lexer;
 
     #[test]
@@ -183,18 +222,53 @@ mod tests {
         let expected_identifiers = ["x", "y", "foobar"];
 
         for (stmt, &expected_identifier) in program.statements.iter().zip(&expected_identifiers) {
-            if let Statement::Let(let_stmt) = stmt {
+            if let Statement::LetStatement { token: _, name } = stmt {
                 assert_eq!(
-                    let_stmt.name.value, expected_identifier,
+                    name.value, expected_identifier,
                     "let_stmt.name.value not '{}'. got={}",
-                    expected_identifier, let_stmt.name.value
+                    expected_identifier, name.value
                 );
                 assert_eq!(
-                    let_stmt.name.token_literal(),
+                    name.token_literal(),
                     expected_identifier,
                     "let_stmt.name.token_literal() not '{}'. got={}",
                     expected_identifier,
-                    let_stmt.name.token_literal()
+                    name.token_literal()
+                );
+            } else {
+                panic!("stmt not a LetStatement. got={:?}", stmt);
+            }
+        }
+    }
+    #[test]
+    fn test_return_statements() {
+        let input = "
+            return 5;
+            return 121341;
+            return 234124;
+                ";
+
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser
+            .parse_program()
+            .expect("parse_program() returned None");
+
+        assert_eq!(
+            program.statements.len(),
+            3,
+            "program.statements does not contain 1 statements. got={}",
+            program.statements.len()
+        );
+
+        for stmt in program.statements.iter() {
+            if let Statement::ReturnStatement { token, value } = stmt {
+                assert_eq!(
+                    token.literal,
+                    stmt.token_literal(),
+                    "let_stmt.name.value not '{}'. got={}",
+                    token.literal,
+                    stmt.token_literal(),
                 );
             } else {
                 panic!("stmt not a LetStatement. got={:?}", stmt);
