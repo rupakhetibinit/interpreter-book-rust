@@ -1,3 +1,4 @@
+use core::ast::Parser;
 #[allow(unused, dead_code)]
 use core::{lexer::Lexer, token::TokenType};
 use std::io::{Write, stdin};
@@ -22,15 +23,11 @@ fn main() {
                 std::process::exit(0)
             }
 
-            let mut lexer = Lexer::new(input);
+            let lexer = Lexer::new(input);
+            let mut parser = Parser::new(lexer);
+            let program = parser.parse_program();
 
-            'a: loop {
-                let token = lexer.next_token();
-                if token.token_type == TokenType::Eof {
-                    break 'a;
-                }
-                println!("{:?}", token)
-            }
+            println!("{:?}", program)
         }
     }
 }
