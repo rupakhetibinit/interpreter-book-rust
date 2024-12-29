@@ -26,8 +26,13 @@ fn main() {
             let lexer = Lexer::new(input);
             let mut parser = Parser::new(lexer);
             let program = parser.parse_program();
-
-            println!("{:?}", program)
+            if parser.errors().is_empty() {
+                println!("{:?}", program)
+            } else {
+                for error in parser.errors() {
+                    println!("{}", error);
+                }
+            }
         }
     }
 }

@@ -5,7 +5,11 @@ use super::{
 };
 #[allow(unused, dead_code)]
 use core::str;
-use std::fmt::{self, format, write};
+use std::{
+    borrow::Cow,
+    fmt::{self, format, write},
+    string,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
@@ -17,14 +21,14 @@ pub enum Node {
 impl fmt::Display for Node {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let _ = match self {
-            Node::Expression(expression) => writeln!(f, "x"),
+            Node::Expression(expression) => writeln!(f, "{}", expression.token_literal()),
             Node::Program(program) => {
                 for statement in &program.statements {
                     writeln!(f, "{}", statement)?;
                 }
                 Ok(())
             }
-            Node::Statement(statement) => writeln!(f, "x"),
+            Node::Statement(statement) => writeln!(f, "{}", statement.token_literal()),
         };
 
         Ok(())
@@ -53,10 +57,10 @@ impl fmt::Display for Statement {
 }
 
 impl Statement {
-    fn token_literal(&self) -> &str {
+    fn token_literal(&self) -> String {
         match self {
-            Statement::LetStatement { token, .. } => &token.literal,
-            Statement::ReturnStatement { token, .. } => &token.literal,
+            Statement::LetStatement { token, .. } => token.literal.clone(),
+            Statement::ReturnStatement { token, .. } => token.literal.clone(),
             Statement::ExpressionStatement(expression) => expression.token_literal(),
         }
     }
@@ -68,41 +72,47 @@ pub enum Expression {
         token: Token,
         value: i64,
     },
-    PrefixExpression {
+    Prefix {
         token: Token,
         operator: String,
         right: Box<Option<Expression>>,
     },
-    InfixExpression {
+    Infix {
         token: Token,
         operator: String,
         right: Box<Expression>,
         left: Box<Expression>,
     },
     Identifier(Identifier),
-    NONE,
+    None,
 }
 
 impl Expression {
-    pub fn token_literal(&self) -> &str {
-        let formatted_string = match self {
-            Expression::IntegerLiteral { token, value: _ } => &token.literal,
-            Expression::PrefixExpression {
-                token,
-                operator: _,
-                right: _,
-            } => token.literal.as_str(),
-            Expression::Identifier(identifier) => identifier.token_literal(),
-            Expression::NONE => "",
-            Expression::InfixExpression {
-                token,
+    pub fn token_literal(&self) -> String {
+        match self {
+            Expression::IntegerLiteral { token, .. } => token.literal.clone(),
+            Expression::Prefix {
+                operator, right, ..
+            } => match right.as_ref() {
+                Some(expression) => format!("({} {})", operator, expression.token_literal()),
+                None => format!("({}{})", operator, "None"),
+            },
+            Expression::Identifier(identifier) => identifier.token.literal.clone(),
+            Expression::None => String::from(""),
+            Expression::Infix {
+                left,
                 operator,
                 right,
-                left,
-            } => "...",
-        };
-
-        formatted_string
+                ..
+            } => {
+                format!(
+                    "({} {} {})",
+                    left.token_literal(),
+                    operator,
+                    right.token_literal()
+                )
+            }
+        }
     }
 }
 
@@ -123,21 +133,6 @@ impl Program {
             statements: Vec::new(),
         }
     }
-
-    pub fn token_literal(&self) -> &str {
-        if !self.statements.is_empty() {
-            self.statements[0].token_literal()
-        } else {
-            ""
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Let {
-    token: Token,
-    name: Identifier,
-    value: Identifier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -148,13 +143,13 @@ pub struct Identifier {
 
 impl fmt::Display for Identifier {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Token : {} Value : {}", self.token, self.value)
+        write!(f, "{}", self.token_literal())
     }
 }
 
 impl Identifier {
-    pub fn token_literal(&self) -> &str {
-        &self.token.literal
+    pub fn token_literal(&self) -> String {
+        self.token.literal.clone()
     }
 }
 
@@ -214,7 +209,7 @@ impl Parser {
 
         let stmt = Statement::ReturnStatement {
             token: self.curr_token.clone(),
-            value: Expression::NONE,
+            value: Expression::None,
         };
 
         while !self.curr_token_is(TokenType::Semicolon) {
@@ -249,11 +244,11 @@ impl Parser {
     }
 
     pub fn curr_token_is(&self, token_type: TokenType) -> bool {
-        return self.curr_token.token_type == token_type;
+        self.curr_token.token_type == token_type
     }
 
     pub fn peek_token_is(&self, token_type: TokenType) -> bool {
-        return self.peek_token.token_type == token_type;
+        self.peek_token.token_type == token_type
     }
 
     pub fn expect_peek(&mut self, token_type: TokenType) -> bool {
@@ -309,7 +304,7 @@ impl Parser {
 
         let right = self.parse_expression_w_precedence(Precedence::PREFIX);
 
-        Some(Expression::PrefixExpression {
+        Some(Expression::Prefix {
             token,
             operator,
             right: Box::new(right),
@@ -324,7 +319,7 @@ impl Parser {
         self.next_token();
         let right = Box::new(self.parse_expression_w_precedence(precedence)?);
 
-        Some(Expression::InfixExpression {
+        Some(Expression::Infix {
             token,
             operator,
             right,
@@ -539,7 +534,7 @@ mod tests {
 
         for (stmt, &expected_identifier) in program.statements.iter().zip(&expected) {
             if let Statement::ExpressionStatement(expression) = stmt {
-                if let Expression::PrefixExpression {
+                if let Expression::Prefix {
                     token,
                     operator,
                     right,
@@ -583,36 +578,16 @@ mod tests {
         );
         let program = program.unwrap();
         let expected = [
-            ("5", "+", "7"),
-            ("5", "-", "7"),
-            ("5", "*", "7"),
-            ("5", "/", "7"),
-            ("5", ">", "7"),
-            ("5", "<", "7"),
-            ("5", "==", "7"),
-            ("5", "!=", "7"),
+            "(5 + 7)", "(5 - 7)", "(5 * 7)", "(5 / 7)", "(5 > 7)", "(5 < 7)", "(5 == 7)",
+            "(5 != 7)",
         ];
 
         for (stmt, &expected_identifier) in program.statements.iter().zip(&expected) {
             if let Statement::ExpressionStatement(expression) = stmt {
-                if let Expression::InfixExpression {
-                    token,
-                    operator,
-                    right,
-                    left,
-                } = expression
-                {
+                if let Expression::Infix { .. } = expression {
                     assert_eq!(
-                        (
-                            left.token_literal(),
-                            operator.as_str(),
-                            right.token_literal()
-                        ),
-                        (
-                            expected_identifier.0,
-                            expected_identifier.1,
-                            expected_identifier.2
-                        )
+                        expression.to_string().as_str(),
+                        expected_identifier.to_owned()
                     )
                 } else {
                     panic!("no infix expressions");
@@ -642,83 +617,7 @@ mod tests {
 
         let program = program.unwrap();
         if let Statement::ExpressionStatement(expression) = &program.statements[0] {
-            dbg!(expression.clone());
-            match expression {
-                Expression::InfixExpression {
-                    operator,
-                    left,
-                    right,
-                    ..
-                } => {
-                    // The top-level operator should be "-"
-                    assert_eq!(operator, "-");
-
-                    // Left side should be "5 * 5 * 2 + 10 * 5"
-                    if let Expression::InfixExpression {
-                        operator: left_op,
-                        left: left_left,
-                        right: left_right,
-                        ..
-                    } = left.as_ref()
-                    {
-                        // The left side's main operator should be "+"
-                        assert_eq!(left_op, "+");
-
-                        // Check "(5 * 5 * 2)"
-                        if let Expression::InfixExpression {
-                            operator: left_left_op,
-                            left: left_left_left,
-                            right: left_left_right,
-                            ..
-                        } = left_left.as_ref()
-                        {
-                            assert_eq!(left_left_op, "*");
-
-                            // Check "5 * 5"
-                            if let Expression::InfixExpression {
-                                operator: inner_op,
-                                left: inner_left,
-                                right: inner_right,
-                                ..
-                            } = left_left_left.as_ref()
-                            {
-                                assert_eq!(inner_op, "*");
-                                assert_eq!(inner_left.token_literal(), "5");
-                                assert_eq!(inner_right.token_literal(), "5");
-                            } else {
-                                panic!("Expected infix expression for '5 * 5'");
-                            }
-
-                            assert_eq!(left_left_right.token_literal(), "2");
-                        } else {
-                            panic!("Expected infix expression for '5 * 5 * 2'");
-                        }
-
-                        // Check "10 * 5"
-                        if let Expression::InfixExpression {
-                            operator: right_op,
-                            left: right_left,
-                            right: right_right,
-                            ..
-                        } = left_right.as_ref()
-                        {
-                            assert_eq!(right_op, "*");
-                            assert_eq!(right_left.token_literal(), "10");
-                            assert_eq!(right_right.token_literal(), "5");
-                        } else {
-                            panic!("Expected infix expression for '10 * 5'");
-                        }
-                    } else {
-                        panic!("Expected infix expression for left side");
-                    }
-
-                    // Right side should be just "2"
-                    assert_eq!(right.token_literal(), "2");
-                }
-                _ => panic!("Expected infix expression"),
-            }
-        } else {
-            panic!("Expected expression statement");
+            assert_eq!(expression.to_string(), "((((5 * 5) * 2) + (10 * 5)) - 2)")
         }
     }
 }
