@@ -4,7 +4,7 @@ use super::{
 };
 #[allow(unused, dead_code)]
 use core::str;
-use std::fmt::{self};
+use std::fmt::{self, format, write};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
@@ -70,7 +70,7 @@ pub enum Expression {
     PrefixExpression {
         token: Token,
         operator: String,
-        right: Box<Expression>,
+        right: Box<Option<Expression>>,
     },
     Identifier(Identifier),
     NONE,
@@ -78,22 +78,24 @@ pub enum Expression {
 
 impl Expression {
     pub fn token_literal(&self) -> &str {
-        match self {
+        let formatted_string = match self {
             Expression::IntegerLiteral { token, value: _ } => &token.literal,
             Expression::PrefixExpression {
-                token: _,
-                operator,
+                token,
+                operator: _,
                 right: _,
-            } => &operator,
+            } => token.literal.as_str(),
             Expression::Identifier(identifier) => identifier.token_literal(),
-            Expression::NONE => todo!(),
-        }
+            Expression::NONE => "",
+        };
+
+        formatted_string
     }
 }
 
 impl fmt::Display for Expression {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Expression")
+        write!(f, "{}", self.token_literal())
     }
 }
 
@@ -263,11 +265,28 @@ impl Parser {
         self.errors.push(message);
     }
 
-    pub fn parse_expression_prefix(&self) -> Option<Expression> {
+    pub fn parse_expression_prefix(&mut self) -> Option<Expression> {
         match self.curr_token.token_type {
             TokenType::Ident => Some(self.parse_identifier()),
+            TokenType::Int => self.parse_integer_literal(),
+            TokenType::Plus | TokenType::Minus => self.parse_prefix_expression(),
             _ => None,
         }
+    }
+
+    pub fn parse_prefix_expression(&mut self) -> Option<Expression> {
+        let token = self.curr_token.clone();
+        let operator = self.curr_token.literal.clone();
+
+        self.next_token();
+
+        let right = self.parse_expression_w_precedence(Precedence::PREFIX);
+
+        Some(Expression::PrefixExpression {
+            token,
+            operator,
+            right: Box::new(right),
+        })
     }
 
     pub fn parse_identifier(&self) -> Expression {
@@ -286,11 +305,12 @@ impl Parser {
             None
         })?;
 
-        return Some(Expression::IntegerLiteral {
+        Some(Expression::IntegerLiteral {
             token: self.curr_token.clone(),
             value: literal,
-        });
+        })
     }
+
     pub fn parse_expression_statement(&mut self) -> Option<Statement> {
         let expression = self.parse_expression_w_precedence(Precedence::LOWEST)?;
 
@@ -302,8 +322,7 @@ impl Parser {
     }
 
     pub fn parse_expression_w_precedence(&mut self, prededence: Precedence) -> Option<Expression> {
-        let left_exp = self.parse_expression_prefix();
-        return left_exp;
+        self.parse_expression_prefix()
     }
 }
 
@@ -404,7 +423,7 @@ mod tests {
     }
 
     #[test]
-    fn test_display_ast() {
+    fn test_prefix_expression() {
         let input = "something;";
         let lexer = Lexer::new(input.to_owned());
         let mut parser = Parser::new(lexer);
@@ -419,5 +438,63 @@ mod tests {
         let program = program.unwrap();
 
         assert_eq!(program.statements[0].token_literal(), "something")
+    }
+
+    #[test]
+    fn test_prefix_expression_integer_literal() {
+        let input = "5;";
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            1,
+            "Program statements should have 1 length"
+        );
+        let program = program.unwrap();
+
+        assert_eq!(program.statements[0].token_literal(), "5")
+    }
+
+    #[test]
+    fn test_prefix_plus_and_minus() {
+        let input = "+5;
+        -20;
+        ";
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            2,
+            "Program statements should have 1 length"
+        );
+        let program = program.unwrap();
+        let expected = [("+", "5"), ("-", "20")];
+
+        for (stmt, &expected_identifier) in program.statements.iter().zip(&expected) {
+            if let Statement::ExpressionStatement(expression) = stmt {
+                if let Expression::PrefixExpression {
+                    token,
+                    operator,
+                    right,
+                } = expression
+                {
+                    println!("{}, {}, {:?}", token, operator, right);
+                    assert_eq!(token.literal, expected_identifier.0);
+                    assert_eq!(operator, expected_identifier.0);
+                    assert_eq!(
+                        right.clone().unwrap().token_literal(),
+                        expected_identifier.1
+                    );
+                }
+            } else {
+                panic!("stmt not a LetStatement. got={:?}", stmt);
+            }
+        }
     }
 }

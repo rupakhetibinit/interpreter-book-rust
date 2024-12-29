@@ -236,7 +236,7 @@ return true;
 
         for (i, (expected_type, expected_literal)) in tests.iter().enumerate() {
             let token = lexer.next_token();
-            println!("{:?}", token);
+            // println!("{:?}", token);
             assert_eq!(
                 &token.token_type, expected_type,
                 "tests[{}] - token type wrong. expected={:?}, got={:?}",
