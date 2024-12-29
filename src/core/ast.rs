@@ -5,7 +5,10 @@ use super::{
 };
 #[allow(unused, dead_code)]
 use core::str;
-use std::fmt::{self};
+use std::{
+    fmt::{self},
+    ops::Deref,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
@@ -33,8 +36,18 @@ impl fmt::Display for Node {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
-    Let { token: Token, name: Identifier },
-    Return { token: Token, value: Expression },
+    Let {
+        token: Token,
+        name: Identifier,
+    },
+    Return {
+        token: Token,
+        value: Expression,
+    },
+    Block {
+        token: Token,
+        statements: Vec<Statement>,
+    },
     Expression(Expression),
 }
 
@@ -47,7 +60,13 @@ impl fmt::Display for Statement {
             Statement::Return { value, .. } => {
                 write!(f, "return {};", value.token_literal())
             }
-            Statement::Expression { .. } => write!(f, "Expression",),
+            Statement::Expression(expression) => write!(f, "{}", expression),
+            Statement::Block { statements, .. } => {
+                for stmt in statements {
+                    _ = write!(f, "{}", stmt);
+                }
+                Ok(())
+            }
         }
     }
 }
@@ -58,6 +77,7 @@ impl Statement {
             Statement::Let { token, .. } => token.literal.clone(),
             Statement::Return { token, .. } => token.literal.clone(),
             Statement::Expression(expression) => expression.token_literal(),
+            Statement::Block { token, .. } => token.literal.clone(),
         }
     }
 }
@@ -78,6 +98,12 @@ pub enum Expression {
         operator: String,
         right: Box<Expression>,
         left: Box<Expression>,
+    },
+    IfExpression {
+        token: Token,
+        condition: Box<Expression>,
+        consequence: Box<Statement>,
+        alternative: Option<Box<Statement>>,
     },
     Identifier(Identifier),
     None,
@@ -108,6 +134,26 @@ impl Expression {
                     right.token_literal()
                 )
             }
+            Expression::IfExpression {
+                condition,
+                consequence,
+                alternative,
+                ..
+            } => match alternative {
+                Some(x) => {
+                    format!(
+                        "if {} {} else {}",
+                        condition.to_string(),
+                        consequence.to_string(),
+                        x.to_string(),
+                    )
+                }
+                None => format!(
+                    "if {} {{ {} }}",
+                    condition.to_string(),
+                    consequence.to_string(),
+                ),
+            },
         }
     }
 }
@@ -274,6 +320,8 @@ impl Parser {
             TokenType::Ident => Some(self.parse_identifier()),
             TokenType::Int => self.parse_integer_literal(),
             TokenType::Plus | TokenType::Minus => self.parse_prefix_expression(),
+            TokenType::LParen => self.parse_grouped_expression(),
+            TokenType::If => self.parse_if_expression(),
             _ => None,
         }
     }
@@ -383,6 +431,63 @@ impl Parser {
 
     pub fn curr_precedence(&self) -> Precedence {
         Self::get_precedence_of_token(self.curr_token.token_type.clone())
+    }
+
+    fn parse_grouped_expression(&mut self) -> Option<Expression> {
+        self.next_token();
+
+        let expression = self.parse_expression_w_precedence(Precedence::Lowest)?;
+
+        if self.expect_peek(TokenType::RParen) {
+            Some(expression)
+        } else {
+            None
+        }
+    }
+
+    fn parse_if_expression(&mut self) -> Option<Expression> {
+        let token = self.curr_token.clone();
+
+        if !self.expect_peek(TokenType::LParen) {
+            return None;
+        }
+
+        self.next_token();
+
+        let condition = Box::new(self.parse_expression_w_precedence(Precedence::Lowest)?);
+
+        if !self.expect_peek(TokenType::RParen) {
+            return None;
+        }
+
+        if !self.expect_peek(TokenType::LBrace) {
+            return None;
+        }
+
+        let consequence = Box::new(self.parse_block_statement());
+
+        return Some(Expression::IfExpression {
+            token,
+            condition,
+            consequence,
+            alternative: None,
+        });
+    }
+
+    fn parse_block_statement(&mut self) -> Statement {
+        let mut statements: Vec<Statement> = Vec::new();
+        let token = self.curr_token.clone();
+
+        while !self.curr_token_is(TokenType::RBrace) && !self.curr_token_is(TokenType::Eof) {
+            let stmt = self.parse_statement();
+            match stmt {
+                Some(x) => statements.push(x),
+                None => {}
+            };
+            self.next_token();
+        }
+
+        return Statement::Block { token, statements };
     }
 }
 
@@ -614,6 +719,57 @@ mod tests {
         let program = program.unwrap();
         if let Statement::Expression(expression) = &program.statements[0] {
             assert_eq!(expression.to_string(), "((((5 * 5) * 2) + (10 * 5)) - 2)")
+        }
+    }
+
+    #[test]
+    fn test_operator_precedence_with_braces() {
+        let input = "
+                (5 * 5 * 2 + (10 / 2)) + (10 * 5 - 2);
+                ";
+
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            1,
+            "Program statements should have 1 length"
+        );
+
+        let program = program.unwrap();
+        if let Statement::Expression(expression) = &program.statements[0] {
+            assert_eq!(
+                expression.to_string(),
+                "((((5 * 5) * 2) + (10 / 2)) + ((10 * 5) - 2))"
+            )
+        }
+    }
+
+    #[test]
+    fn test_parse_if_expression() {
+        let input = "
+            if (x < 5) { 2 + 2; }
+                ";
+
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            1,
+            "Program statements should have 1 length"
+        );
+
+        let program = program.unwrap();
+        match &program.statements[0] {
+            expression => {
+                assert_eq!(expression.to_string(), "if (x < 5) { (2 + 2) }")
+            }
         }
     }
 
