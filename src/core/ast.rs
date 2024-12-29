@@ -1,5 +1,6 @@
 use super::{
     lexer::Lexer,
+    precedence::Precedence,
     token::{Token, TokenType},
 };
 #[allow(unused, dead_code)]
@@ -72,6 +73,12 @@ pub enum Expression {
         operator: String,
         right: Box<Option<Expression>>,
     },
+    InfixExpression {
+        token: Token,
+        operator: String,
+        right: Box<Expression>,
+        left: Box<Expression>,
+    },
     Identifier(Identifier),
     NONE,
 }
@@ -87,6 +94,12 @@ impl Expression {
             } => token.literal.as_str(),
             Expression::Identifier(identifier) => identifier.token_literal(),
             Expression::NONE => "",
+            Expression::InfixExpression {
+                token,
+                operator,
+                right,
+                left,
+            } => "...",
         };
 
         formatted_string
@@ -274,6 +287,20 @@ impl Parser {
         }
     }
 
+    pub fn parse_expression_infix(&mut self, expression: Expression) -> Option<Expression> {
+        match self.curr_token.token_type {
+            TokenType::Eq
+            | TokenType::NotEq
+            | TokenType::Minus
+            | TokenType::Plus
+            | TokenType::Asterisk
+            | TokenType::Slash
+            | TokenType::Gt
+            | TokenType::Lt => self.parse_infix_expression(expression),
+            _ => None,
+        }
+    }
+
     pub fn parse_prefix_expression(&mut self) -> Option<Expression> {
         let token = self.curr_token.clone();
         let operator = self.curr_token.literal.clone();
@@ -286,6 +313,22 @@ impl Parser {
             token,
             operator,
             right: Box::new(right),
+        })
+    }
+
+    pub fn parse_infix_expression(&mut self, left: Expression) -> Option<Expression> {
+        let token = self.curr_token.clone();
+        let operator = self.curr_token.literal.clone();
+        let left = Box::new(left);
+        let precedence = self.curr_precedence();
+        self.next_token();
+        let right = Box::new(self.parse_expression_w_precedence(precedence)?);
+
+        Some(Expression::InfixExpression {
+            token,
+            operator,
+            right,
+            left,
         })
     }
 
@@ -322,23 +365,41 @@ impl Parser {
     }
 
     pub fn parse_expression_w_precedence(&mut self, prededence: Precedence) -> Option<Expression> {
-        self.parse_expression_prefix()
-    }
-}
+        let mut left = self.parse_expression_prefix()?;
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum Precedence {
-    LOWEST = 1,
-    EQUALS,
-    LESSGREATER,
-    SUM,
-    PRODUCT,
-    PREFIX,
-    CALL,
+        while !self.peek_token_is(TokenType::Semicolon) && prededence < self.peek_precedence() {
+            self.next_token();
+            if let Some(infix) = self.parse_expression_infix(left.clone()) {
+                left = infix
+            }
+        }
+        Some(left)
+    }
+
+    fn get_precedence_of_token(token_type: TokenType) -> Precedence {
+        match token_type {
+            TokenType::Eq | TokenType::NotEq => Precedence::EQUALS,
+            TokenType::Lt | TokenType::Gt => Precedence::LESSGREATER,
+            TokenType::Plus | TokenType::Minus => Precedence::SUM,
+            TokenType::Asterisk | TokenType::Slash => Precedence::PRODUCT,
+            _ => Precedence::LOWEST,
+        }
+    }
+
+    pub fn peek_precedence(&self) -> Precedence {
+        Self::get_precedence_of_token(self.peek_token.token_type.clone())
+    }
+
+    pub fn curr_precedence(&self) -> Precedence {
+        Self::get_precedence_of_token(self.curr_token.token_type.clone())
+    }
 }
 
 #[cfg(test)]
 mod tests {
+
+    use core::panic;
+
     use super::*;
     use crate::core::ast::Statement;
     use crate::core::lexer::Lexer;
@@ -495,6 +556,169 @@ mod tests {
             } else {
                 panic!("stmt not a LetStatement. got={:?}", stmt);
             }
+        }
+    }
+
+    #[test]
+    fn test_infix_expressions() {
+        let input = "
+                5 + 7;
+                5 - 7;
+                5 * 7;
+                5 / 7;
+                5 > 7;
+                5 < 7;
+                5 == 7;
+                5 != 7;
+                ";
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            8,
+            "Program statements should have 8 length"
+        );
+        let program = program.unwrap();
+        let expected = [
+            ("5", "+", "7"),
+            ("5", "-", "7"),
+            ("5", "*", "7"),
+            ("5", "/", "7"),
+            ("5", ">", "7"),
+            ("5", "<", "7"),
+            ("5", "==", "7"),
+            ("5", "!=", "7"),
+        ];
+
+        for (stmt, &expected_identifier) in program.statements.iter().zip(&expected) {
+            if let Statement::ExpressionStatement(expression) = stmt {
+                if let Expression::InfixExpression {
+                    token,
+                    operator,
+                    right,
+                    left,
+                } = expression
+                {
+                    assert_eq!(
+                        (
+                            left.token_literal(),
+                            operator.as_str(),
+                            right.token_literal()
+                        ),
+                        (
+                            expected_identifier.0,
+                            expected_identifier.1,
+                            expected_identifier.2
+                        )
+                    )
+                } else {
+                    panic!("no infix expressions");
+                }
+            } else {
+                panic!("stmt not a LetStatement. got={:?}", stmt);
+            }
+        }
+    }
+
+    #[test]
+    fn test_operator_precedence() {
+        let input = "
+                5 * 5 * 2 + 10 * 5 - 2;
+                ";
+
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            1,
+            "Program statements should have 1 length"
+        );
+
+        let program = program.unwrap();
+        if let Statement::ExpressionStatement(expression) = &program.statements[0] {
+            dbg!(expression.clone());
+            match expression {
+                Expression::InfixExpression {
+                    operator,
+                    left,
+                    right,
+                    ..
+                } => {
+                    // The top-level operator should be "-"
+                    assert_eq!(operator, "-");
+
+                    // Left side should be "5 * 5 * 2 + 10 * 5"
+                    if let Expression::InfixExpression {
+                        operator: left_op,
+                        left: left_left,
+                        right: left_right,
+                        ..
+                    } = left.as_ref()
+                    {
+                        // The left side's main operator should be "+"
+                        assert_eq!(left_op, "+");
+
+                        // Check "(5 * 5 * 2)"
+                        if let Expression::InfixExpression {
+                            operator: left_left_op,
+                            left: left_left_left,
+                            right: left_left_right,
+                            ..
+                        } = left_left.as_ref()
+                        {
+                            assert_eq!(left_left_op, "*");
+
+                            // Check "5 * 5"
+                            if let Expression::InfixExpression {
+                                operator: inner_op,
+                                left: inner_left,
+                                right: inner_right,
+                                ..
+                            } = left_left_left.as_ref()
+                            {
+                                assert_eq!(inner_op, "*");
+                                assert_eq!(inner_left.token_literal(), "5");
+                                assert_eq!(inner_right.token_literal(), "5");
+                            } else {
+                                panic!("Expected infix expression for '5 * 5'");
+                            }
+
+                            assert_eq!(left_left_right.token_literal(), "2");
+                        } else {
+                            panic!("Expected infix expression for '5 * 5 * 2'");
+                        }
+
+                        // Check "10 * 5"
+                        if let Expression::InfixExpression {
+                            operator: right_op,
+                            left: right_left,
+                            right: right_right,
+                            ..
+                        } = left_right.as_ref()
+                        {
+                            assert_eq!(right_op, "*");
+                            assert_eq!(right_left.token_literal(), "10");
+                            assert_eq!(right_right.token_literal(), "5");
+                        } else {
+                            panic!("Expected infix expression for '10 * 5'");
+                        }
+                    } else {
+                        panic!("Expected infix expression for left side");
+                    }
+
+                    // Right side should be just "2"
+                    assert_eq!(right.token_literal(), "2");
+                }
+                _ => panic!("Expected infix expression"),
+            }
+        } else {
+            panic!("Expected expression statement");
         }
     }
 }
