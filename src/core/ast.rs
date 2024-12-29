@@ -1,10 +1,10 @@
-#[allow(unused, dead_code)]
-use core::str;
-
 use super::{
     lexer::Lexer,
     token::{Token, TokenType},
 };
+#[allow(unused, dead_code)]
+use core::str;
+use std::fmt::{self};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
@@ -13,10 +13,42 @@ pub enum Node {
     Expression(Expression),
 }
 
+impl fmt::Display for Node {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let _ = match self {
+            Node::Expression(expression) => writeln!(f, "x"),
+            Node::Program(program) => {
+                for statement in &program.statements {
+                    writeln!(f, "{}", statement)?;
+                }
+                Ok(())
+            }
+            Node::Statement(statement) => writeln!(f, "x"),
+        };
+
+        Ok(())
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
     LetStatement { token: Token, name: Identifier },
     ReturnStatement { token: Token, value: Expression },
+    ExpressionStatement(Expression),
+}
+
+impl fmt::Display for Statement {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Statement::LetStatement { token, name } => {
+                write!(f, "Token :  {} Name:  {}", token, name)
+            }
+            Statement::ReturnStatement { token, value } => {
+                write!(f, "Token: {}  Value: {}", token, value)
+            }
+            Statement::ExpressionStatement { .. } => write!(f, "Expression",),
+        }
+    }
 }
 
 impl Statement {
@@ -24,13 +56,45 @@ impl Statement {
         match self {
             Statement::LetStatement { token, .. } => &token.literal,
             Statement::ReturnStatement { token, .. } => &token.literal,
+            Statement::ExpressionStatement(expression) => expression.token_literal(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
+    IntegerLiteral {
+        token: Token,
+        value: i64,
+    },
+    PrefixExpression {
+        token: Token,
+        operator: String,
+        right: Box<Expression>,
+    },
+    Identifier(Identifier),
     NONE,
+}
+
+impl Expression {
+    pub fn token_literal(&self) -> &str {
+        match self {
+            Expression::IntegerLiteral { token, value: _ } => &token.literal,
+            Expression::PrefixExpression {
+                token: _,
+                operator,
+                right: _,
+            } => &operator,
+            Expression::Identifier(identifier) => identifier.token_literal(),
+            Expression::NONE => todo!(),
+        }
+    }
+}
+
+impl fmt::Display for Expression {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Expression")
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,6 +122,7 @@ impl Program {
 pub struct Let {
     token: Token,
     name: Identifier,
+    value: Identifier,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -66,12 +131,19 @@ pub struct Identifier {
     value: String,
 }
 
+impl fmt::Display for Identifier {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Token : {} Value : {}", self.token, self.value)
+    }
+}
+
 impl Identifier {
     pub fn token_literal(&self) -> &str {
         &self.token.literal
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Parser {
     lexer: Lexer,
     curr_token: Token,
@@ -116,7 +188,7 @@ impl Parser {
         match self.curr_token.token_type {
             TokenType::Let => self.parse_let_statement(),
             TokenType::Return => self.parse_return_statement(),
-            _ => None,
+            _ => self.parse_expression_statement(),
         }
     }
 
@@ -190,6 +262,60 @@ impl Parser {
         );
         self.errors.push(message);
     }
+
+    pub fn parse_expression_prefix(&self) -> Option<Expression> {
+        match self.curr_token.token_type {
+            TokenType::Ident => Some(self.parse_identifier()),
+            _ => None,
+        }
+    }
+
+    pub fn parse_identifier(&self) -> Expression {
+        Expression::Identifier(Identifier {
+            token: self.curr_token.clone(),
+            value: self.curr_token.literal.clone(),
+        })
+    }
+
+    pub fn parse_integer_literal(&mut self) -> Option<Expression> {
+        let literal = self.curr_token.literal.parse::<i64>().ok().or_else(|| {
+            self.errors.push(format!(
+                "Could not parse {} as integer",
+                self.curr_token.literal
+            ));
+            None
+        })?;
+
+        return Some(Expression::IntegerLiteral {
+            token: self.curr_token.clone(),
+            value: literal,
+        });
+    }
+    pub fn parse_expression_statement(&mut self) -> Option<Statement> {
+        let expression = self.parse_expression_w_precedence(Precedence::LOWEST)?;
+
+        if self.peek_token_is(TokenType::Semicolon) {
+            self.next_token();
+        }
+
+        Some(Statement::ExpressionStatement(expression))
+    }
+
+    pub fn parse_expression_w_precedence(&mut self, prededence: Precedence) -> Option<Expression> {
+        let left_exp = self.parse_expression_prefix();
+        return left_exp;
+    }
+}
+
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum Precedence {
+    LOWEST = 1,
+    EQUALS,
+    LESSGREATER,
+    SUM,
+    PRODUCT,
+    PREFIX,
+    CALL,
 }
 
 #[cfg(test)]
@@ -240,6 +366,7 @@ mod tests {
             }
         }
     }
+
     #[test]
     fn test_return_statements() {
         let input = "
@@ -262,7 +389,7 @@ mod tests {
         );
 
         for stmt in program.statements.iter() {
-            if let Statement::ReturnStatement { token, value } = stmt {
+            if let Statement::ReturnStatement { token, .. } = stmt {
                 assert_eq!(
                     token.literal,
                     stmt.token_literal(),
@@ -274,5 +401,23 @@ mod tests {
                 panic!("stmt not a LetStatement. got={:?}", stmt);
             }
         }
+    }
+
+    #[test]
+    fn test_display_ast() {
+        let input = "something;";
+        let lexer = Lexer::new(input.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            1,
+            "Program statements should have 1 length"
+        );
+        let program = program.unwrap();
+
+        assert_eq!(program.statements[0].token_literal(), "something")
     }
 }
