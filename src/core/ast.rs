@@ -5,11 +5,7 @@ use super::{
 };
 #[allow(unused, dead_code)]
 use core::str;
-use std::{
-    borrow::Cow,
-    fmt::{self, format, write},
-    string,
-};
+use std::fmt::{self};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
@@ -37,21 +33,21 @@ impl fmt::Display for Node {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Statement {
-    LetStatement { token: Token, name: Identifier },
-    ReturnStatement { token: Token, value: Expression },
-    ExpressionStatement(Expression),
+    Let { token: Token, name: Identifier },
+    Return { token: Token, value: Expression },
+    Expression(Expression),
 }
 
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Statement::LetStatement { token, name } => {
-                write!(f, "Token :  {} Name:  {}", token, name)
+            Statement::Let { token, name } => {
+                write!(f, "let {} = {};", token.literal, name.value)
             }
-            Statement::ReturnStatement { token, value } => {
-                write!(f, "Token: {}  Value: {}", token, value)
+            Statement::Return { value, .. } => {
+                write!(f, "return {};", value.token_literal())
             }
-            Statement::ExpressionStatement { .. } => write!(f, "Expression",),
+            Statement::Expression { .. } => write!(f, "Expression",),
         }
     }
 }
@@ -59,9 +55,9 @@ impl fmt::Display for Statement {
 impl Statement {
     fn token_literal(&self) -> String {
         match self {
-            Statement::LetStatement { token, .. } => token.literal.clone(),
-            Statement::ReturnStatement { token, .. } => token.literal.clone(),
-            Statement::ExpressionStatement(expression) => expression.token_literal(),
+            Statement::Let { token, .. } => token.literal.clone(),
+            Statement::Return { token, .. } => token.literal.clone(),
+            Statement::Expression(expression) => expression.token_literal(),
         }
     }
 }
@@ -97,7 +93,7 @@ impl Expression {
                 Some(expression) => format!("({} {})", operator, expression.token_literal()),
                 None => format!("({}{})", operator, "None"),
             },
-            Expression::Identifier(identifier) => identifier.token.literal.clone(),
+            Expression::Identifier(identifier) => identifier.value.clone(),
             Expression::None => String::from(""),
             Expression::Infix {
                 left,
@@ -207,7 +203,7 @@ impl Parser {
             return None;
         }
 
-        let stmt = Statement::ReturnStatement {
+        let stmt = Statement::Return {
             token: self.curr_token.clone(),
             value: Expression::None,
         };
@@ -224,7 +220,7 @@ impl Parser {
             return None;
         }
 
-        let stmt = Statement::LetStatement {
+        let stmt = Statement::Let {
             name: Identifier {
                 token: self.curr_token.clone(),
                 value: self.curr_token.literal.clone(),
@@ -302,7 +298,7 @@ impl Parser {
 
         self.next_token();
 
-        let right = self.parse_expression_w_precedence(Precedence::PREFIX);
+        let right = self.parse_expression_w_precedence(Precedence::Prefix);
 
         Some(Expression::Prefix {
             token,
@@ -350,13 +346,13 @@ impl Parser {
     }
 
     pub fn parse_expression_statement(&mut self) -> Option<Statement> {
-        let expression = self.parse_expression_w_precedence(Precedence::LOWEST)?;
+        let expression = self.parse_expression_w_precedence(Precedence::Lowest)?;
 
         if self.peek_token_is(TokenType::Semicolon) {
             self.next_token();
         }
 
-        Some(Statement::ExpressionStatement(expression))
+        Some(Statement::Expression(expression))
     }
 
     pub fn parse_expression_w_precedence(&mut self, prededence: Precedence) -> Option<Expression> {
@@ -373,11 +369,11 @@ impl Parser {
 
     fn get_precedence_of_token(token_type: TokenType) -> Precedence {
         match token_type {
-            TokenType::Eq | TokenType::NotEq => Precedence::EQUALS,
-            TokenType::Lt | TokenType::Gt => Precedence::LESSGREATER,
-            TokenType::Plus | TokenType::Minus => Precedence::SUM,
-            TokenType::Asterisk | TokenType::Slash => Precedence::PRODUCT,
-            _ => Precedence::LOWEST,
+            TokenType::Eq | TokenType::NotEq => Precedence::Equals,
+            TokenType::Lt | TokenType::Gt => Precedence::LessGreater,
+            TokenType::Plus | TokenType::Minus => Precedence::Sum,
+            TokenType::Asterisk | TokenType::Slash => Precedence::Product,
+            _ => Precedence::Lowest,
         }
     }
 
@@ -423,7 +419,7 @@ mod tests {
         let expected_identifiers = ["x", "y", "foobar"];
 
         for (stmt, &expected_identifier) in program.statements.iter().zip(&expected_identifiers) {
-            if let Statement::LetStatement { token: _, name } = stmt {
+            if let Statement::Let { token: _, name } = stmt {
                 assert_eq!(
                     name.value, expected_identifier,
                     "let_stmt.name.value not '{}'. got={}",
@@ -464,7 +460,7 @@ mod tests {
         );
 
         for stmt in program.statements.iter() {
-            if let Statement::ReturnStatement { token, .. } = stmt {
+            if let Statement::Return { token, .. } = stmt {
                 assert_eq!(
                     token.literal,
                     stmt.token_literal(),
@@ -533,7 +529,7 @@ mod tests {
         let expected = [("+", "5"), ("-", "20")];
 
         for (stmt, &expected_identifier) in program.statements.iter().zip(&expected) {
-            if let Statement::ExpressionStatement(expression) = stmt {
+            if let Statement::Expression(expression) = stmt {
                 if let Expression::Prefix {
                     token,
                     operator,
@@ -583,7 +579,7 @@ mod tests {
         ];
 
         for (stmt, &expected_identifier) in program.statements.iter().zip(&expected) {
-            if let Statement::ExpressionStatement(expression) = stmt {
+            if let Statement::Expression(expression) = stmt {
                 if let Expression::Infix { .. } = expression {
                     assert_eq!(
                         expression.to_string().as_str(),
@@ -616,8 +612,26 @@ mod tests {
         );
 
         let program = program.unwrap();
-        if let Statement::ExpressionStatement(expression) = &program.statements[0] {
+        if let Statement::Expression(expression) = &program.statements[0] {
             assert_eq!(expression.to_string(), "((((5 * 5) * 2) + (10 * 5)) - 2)")
         }
     }
+
+    // TODO
+    // #[test]
+    // fn test_let_statements_print() {
+    //     let input = ["let x = 2;", "let y = something;", "let x = 2 + 2;"];
+    //     let expected = ["let x = 2;", "let y = something;", "let x = (2 + 2);"];
+
+    //     let lexer = Lexer::new(input.concat());
+    //     let mut parser = Parser::new(lexer);
+    //     let program = parser.parse_program();
+    //     assert!(program.is_some());
+    //     assert!(parser.errors().is_empty(), "Errors while parsing");
+
+    //     for (stmt, expect) in program.unwrap().statements.iter().zip(expected) {
+    //         dbg!(stmt);
+    //         assert_eq!(stmt.to_string(), expect);
+    //     }
+    // }
 }
