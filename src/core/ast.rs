@@ -5,10 +5,7 @@ use super::{
 };
 #[allow(unused, dead_code)]
 use core::str;
-use std::{
-    fmt::{self},
-    ops::Deref,
-};
+use std::fmt::{self};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Node {
@@ -84,7 +81,7 @@ impl Statement {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
-    IntegerLiteral {
+    Integer {
         token: Token,
         value: i64,
     },
@@ -99,11 +96,16 @@ pub enum Expression {
         right: Box<Expression>,
         left: Box<Expression>,
     },
-    IfExpression {
+    If {
         token: Token,
         condition: Box<Expression>,
         consequence: Box<Statement>,
         alternative: Option<Box<Statement>>,
+    },
+    Function {
+        token: Token,
+        parameters: Vec<Identifier>,
+        body: Box<Statement>,
     },
     Identifier(Identifier),
     None,
@@ -112,7 +114,7 @@ pub enum Expression {
 impl Expression {
     pub fn token_literal(&self) -> String {
         match self {
-            Expression::IntegerLiteral { token, .. } => token.literal.clone(),
+            Expression::Integer { token, .. } => token.literal.clone(),
             Expression::Prefix {
                 operator, right, ..
             } => match right.as_ref() {
@@ -134,7 +136,7 @@ impl Expression {
                     right.token_literal()
                 )
             }
-            Expression::IfExpression {
+            Expression::If {
                 condition,
                 consequence,
                 alternative,
@@ -154,6 +156,18 @@ impl Expression {
                     consequence.to_string(),
                 ),
             },
+            Expression::Function {
+                parameters, body, ..
+            } => format!(
+                "fn ({}) {{ {} }}",
+                parameters
+                    .to_vec()
+                    .iter()
+                    .map(|f| f.to_string())
+                    .collect::<Vec<_>>()
+                    .join(" , "),
+                body
+            ),
         }
     }
 }
@@ -285,6 +299,28 @@ impl Parser {
         Some(stmt)
     }
 
+    pub fn parse_function_literal(&mut self) -> Option<Expression> {
+        let token = self.curr_token.clone();
+
+        if !self.expect_peek(TokenType::LParen) {
+            return None;
+        }
+
+        let parameters = self.parse_function_parameters()?;
+
+        if !self.expect_peek(TokenType::LBrace) {
+            return None;
+        }
+
+        let body = Box::new(self.parse_block_statement());
+
+        return Some(Expression::Function {
+            token,
+            parameters,
+            body,
+        });
+    }
+
     pub fn curr_token_is(&self, token_type: TokenType) -> bool {
         self.curr_token.token_type == token_type
     }
@@ -322,6 +358,7 @@ impl Parser {
             TokenType::Plus | TokenType::Minus => self.parse_prefix_expression(),
             TokenType::LParen => self.parse_grouped_expression(),
             TokenType::If => self.parse_if_expression(),
+            TokenType::Function => self.parse_function_literal(),
             _ => None,
         }
     }
@@ -387,7 +424,7 @@ impl Parser {
             None
         })?;
 
-        Some(Expression::IntegerLiteral {
+        Some(Expression::Integer {
             token: self.curr_token.clone(),
             value: literal,
         })
@@ -466,7 +503,7 @@ impl Parser {
 
         let consequence = Box::new(self.parse_block_statement());
 
-        return Some(Expression::IfExpression {
+        return Some(Expression::If {
             token,
             condition,
             consequence,
@@ -488,6 +525,37 @@ impl Parser {
         }
 
         return Statement::Block { token, statements };
+    }
+
+    fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
+        let mut identifiers: Vec<Identifier> = vec![];
+
+        if self.peek_token_is(TokenType::RParen) {
+            self.next_token();
+            return Some(identifiers);
+        }
+
+        self.next_token();
+
+        identifiers.push(Identifier {
+            token: self.curr_token.clone(),
+            value: self.curr_token.literal.clone(),
+        });
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+            identifiers.push(Identifier {
+                token: self.curr_token.clone(),
+                value: self.curr_token.literal.clone(),
+            });
+        }
+
+        if !self.expect_peek(TokenType::RParen) {
+            return None;
+        }
+
+        Some(identifiers)
     }
 }
 
@@ -769,6 +837,33 @@ mod tests {
         match &program.statements[0] {
             expression => {
                 assert_eq!(expression.to_string(), "if (x < 5) { (2 + 2) }")
+            }
+        }
+    }
+
+    #[test]
+    fn test_function_literal() {
+        let input = ["fn (x , y) { x + y; }", "fn (x) {}"];
+        let expected = ["fn (x , y) { (x + y) }", "fn (x) {  }"];
+        let input_string = input.join("\n");
+
+        let lexer = Lexer::new(input_string.to_owned());
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+        assert!(program.is_some());
+        assert!(parser.errors().is_empty(), "Errors while parsing");
+        assert_eq!(
+            program.clone().unwrap().statements.len(),
+            2,
+            "Program statements should have 2 length"
+        );
+
+        let program = program.unwrap();
+        for (statement, expected_output) in program.statements.iter().zip(&expected) {
+            match statement {
+                expression => {
+                    assert_eq!(expression.to_string(), expected_output.to_string())
+                }
             }
         }
     }
