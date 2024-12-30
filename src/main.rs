@@ -1,9 +1,6 @@
-use core::ast::Parser;
-#[allow(unused, dead_code)]
-use core::{lexer::Lexer, token::TokenType};
-use std::io::{Write, stdin};
+use std::io::Write;
 
-mod core;
+use interpreter_book::{Lexer, Parser};
 
 fn main() {
     let mut args = std::env::args();
@@ -16,7 +13,7 @@ fn main() {
             let mut input = String::new();
             print!("> ");
             let _ = std::io::stdout().flush();
-            stdin().read_line(&mut input).unwrap();
+            std::io::stdin().read_line(&mut input).unwrap();
 
             if input.trim_end().is_empty() {
                 println!("Exiting Repl");
