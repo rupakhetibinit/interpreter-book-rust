@@ -64,21 +64,16 @@ impl Lexer {
             '(' => Token::new(TokenType::LParen, "("),
             ')' => Token::new(TokenType::RParen, ")"),
             '\u{0}' => Token::new(TokenType::Eof, ""),
-            _ => {
-                if self.ch.is_alphabetic() || self.ch == '_' {
-                    let literal = self.read_identifier();
-                    let tok_type = self.lookup_identifier(&literal);
-                    return Token::new(tok_type, &literal);
-                } else if self.ch.is_ascii_digit() {
-                    let literal = self.read_number();
-                    return Token::new(TokenType::Int, &literal);
-                }
-
-                Token::new(
-                    TokenType::Illegal,
-                    &self.input[self.position..=self.position],
-                )
+            c if c.is_alphabetic() || c == '_' => {
+                let literal = self.read_identifier();
+                let tok_type = self.lookup_identifier(&literal);
+                return Token::new(tok_type, &literal);
             }
+            c if c.is_ascii_digit() => {
+                let literal = self.read_number();
+                return Token::new(TokenType::Int, &literal);
+            }
+            _ => Token::new(TokenType::Illegal, &self.ch.to_string()),
         };
         self.read_char();
         token
