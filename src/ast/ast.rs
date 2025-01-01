@@ -78,6 +78,11 @@ pub enum Expression {
         parameters: Vec<Identifier>,
         body: Box<Statement>,
     },
+    Call {
+        token: Token,
+        function: Box<Expression>,
+        arguments: Option<Vec<Expression>>,
+    },
     Identifier(Identifier),
     None,
 }
@@ -139,6 +144,24 @@ impl Expression {
                     .join(" , "),
                 body
             ),
+            Expression::Call {
+                function,
+                arguments,
+                ..
+            } => {
+                let mut args: String = String::new();
+
+                if let Some(argument) = arguments {
+                    let args_formatted = argument
+                        .iter()
+                        .map(|f| f.to_string())
+                        .collect::<Vec<_>>()
+                        .join(", ");
+
+                    args.push_str(&args_formatted);
+                }
+                format!("{}({})", function.token_literal(), args)
+            }
         }
     }
 }

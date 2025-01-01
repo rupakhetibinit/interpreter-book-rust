@@ -303,6 +303,43 @@ fn test_function_literal() {
     }
 }
 
+#[test]
+fn test_function_call() {
+    let input = [
+        "a + add(b * c) + d",
+        "add(a, b, 1, 2 * 3, 4 + 5, add(6, 7 * 8))",
+        "add(a + b + c * d / f + g)",
+    ];
+    let expected = [
+        "((a + add((b * c))) + d)",
+        "add(a, b, 1, (2 * 3), (4 + 5), add(6, (7 * 8)))",
+        "add((((a + b) + ((c * d) / f)) + g))",
+    ];
+    let input_string = input.join("\n");
+
+    let lexer = Lexer::new(input_string.to_owned());
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    assert!(program.is_some());
+    assert!(parser.errors().is_empty(), "Errors while parsing");
+    dbg!("{}", parser.errors().clone());
+    assert_eq!(
+        program.clone().unwrap().statements.len(),
+        3,
+        "Program statements should have 2 length"
+    );
+
+    let program = program.unwrap();
+    for (statement, expected_output) in program.statements.iter().zip(&expected) {
+        match statement {
+            expression => {
+                assert_eq!(expression.to_string(), expected_output.to_string())
+            }
+        }
+    }
+}
+
 // TODO
 // #[test]
 // fn test_let_statements_print() {

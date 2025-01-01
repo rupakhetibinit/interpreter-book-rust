@@ -57,9 +57,9 @@ impl Parser {
     }
 
     pub fn parse_return_statement(&mut self) -> Option<Statement> {
-        if !self.expect_peek(TokenType::Int) {
-            return None;
-        }
+        // if !self.expect_peek(TokenType::Int) {
+        //     return None;
+        // }
 
         let stmt = Statement::Return {
             token: self.curr_token.clone(),
@@ -171,6 +171,7 @@ impl Parser {
             | TokenType::Slash
             | TokenType::Gt
             | TokenType::Lt => self.parse_infix_expression(expression),
+            TokenType::LParen => self.parse_call_expression(expression),
             _ => None,
         }
     }
@@ -256,6 +257,7 @@ impl Parser {
             TokenType::Lt | TokenType::Gt => Precedence::LessGreater,
             TokenType::Plus | TokenType::Minus => Precedence::Sum,
             TokenType::Asterisk | TokenType::Slash => Precedence::Product,
+            TokenType::LParen => Precedence::Call,
             _ => Precedence::Lowest,
         }
     }
@@ -354,5 +356,43 @@ impl Parser {
         }
 
         Some(identifiers)
+    }
+
+    fn parse_call_expression(&mut self, expression: Expression) -> Option<Expression> {
+        let token = self.curr_token.clone();
+        let function = Box::new(expression);
+
+        let arguments = self.parse_call_arguments();
+
+        Some(Expression::Call {
+            token,
+            function,
+            arguments,
+        })
+    }
+
+    fn parse_call_arguments(&mut self) -> Option<Vec<Expression>> {
+        let mut args: Vec<Expression> = vec![];
+
+        if self.peek_token_is(TokenType::RParen) {
+            self.next_token();
+            return None;
+        }
+
+        self.next_token();
+
+        args.push(self.parse_expression_w_precedence(Precedence::Lowest)?);
+
+        while self.peek_token_is(TokenType::Comma) {
+            self.next_token();
+            self.next_token();
+            args.push(self.parse_expression_w_precedence(Precedence::Lowest)?);
+        }
+
+        if !self.expect_peek(TokenType::RParen) {
+            return None;
+        }
+
+        Some(args)
     }
 }
