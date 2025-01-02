@@ -1,4 +1,5 @@
 use crate::{
+    StringArena,
     ast::ast::{Expression, Identifier, Program, Statement},
     lexer::{
         lexer::Lexer,
@@ -36,8 +37,8 @@ impl Parser {
         self.peek_token = self.lexer.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Option<Program> {
-        let mut program = Program::new();
+    pub fn parse_program<'a>(&mut self, arena: StringArena<'a>) -> Option<Program<'a>> {
+        let mut program = Program::new(arena);
 
         while !self.curr_token_is(TokenType::Eof) {
             if let Some(stmt) = self.parse_statement() {

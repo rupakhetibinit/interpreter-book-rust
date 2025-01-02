@@ -1,3 +1,5 @@
+use crate::arena::arena;
+
 use super::{Token, TokenType};
 
 #[derive(Debug, Clone)]

@@ -1,25 +1,25 @@
 use core::fmt;
 
-use crate::lexer::token::Token;
+use crate::{StringArena, lexer::token::Token};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Statement {
+pub enum Statement<'a> {
     Let {
-        token: Token,
-        name: Identifier,
+        token: Token<'a>,
+        name: Identifier<'a>,
     },
     Return {
-        token: Token,
-        value: Expression,
+        token: Token<'a>,
+        value: Expression<'a>,
     },
     Block {
-        token: Token,
-        statements: Vec<Statement>,
+        token: Token<'a>,
+        statements: Vec<Statement<'a>>,
     },
-    Expression(Expression),
+    Expression(Expression<'a>),
 }
 
-impl fmt::Display for Statement {
+impl<'a> fmt::Display for Statement<'a> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Statement::Let { token, name } => {
@@ -39,65 +39,65 @@ impl fmt::Display for Statement {
     }
 }
 
-impl Statement {
+impl<'a> Statement<'a> {
     pub fn token_literal(&self) -> String {
         match self {
-            Statement::Let { token, .. } => token.literal.clone(),
-            Statement::Return { token, .. } => token.literal.clone(),
+            Statement::Let { token, .. } => token.literal.to_string(),
+            Statement::Return { token, .. } => token.literal.to_string(),
             Statement::Expression(expression) => expression.token_literal(),
-            Statement::Block { token, .. } => token.literal.clone(),
+            Statement::Block { token, .. } => token.literal.to_string(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression {
+pub enum Expression<'a> {
     Integer {
-        token: Token,
+        token: Token<'a>,
         value: i64,
     },
     Prefix {
-        token: Token,
-        operator: String,
-        right: Box<Option<Expression>>,
+        token: Token<'a>,
+        operator: usize,
+        right: Box<Option<Expression<'a>>>,
     },
     Infix {
-        token: Token,
-        operator: String,
-        right: Box<Expression>,
-        left: Box<Expression>,
+        token: Token<'a>,
+        operator: usize,
+        right: Box<Expression<'a>>,
+        left: Box<Expression<'a>>,
     },
     If {
-        token: Token,
-        condition: Box<Expression>,
+        token: Token<'a>,
+        condition: Box<Expression<'a>>,
         consequence: Box<Statement>,
         alternative: Option<Box<Statement>>,
     },
     Function {
-        token: Token,
+        token: Token<'a>,
         parameters: Vec<Identifier>,
         body: Box<Statement>,
     },
     Call {
-        token: Token,
-        function: Box<Expression>,
-        arguments: Option<Vec<Expression>>,
+        token: Token<'a>,
+        function: Box<Expression<'a>>,
+        arguments: Option<Vec<Expression<'a>>>,
     },
     Identifier(Identifier),
     None,
 }
 
-impl Expression {
+impl<'a> Expression<'a> {
     pub fn token_literal(&self) -> String {
         match self {
-            Expression::Integer { token, .. } => token.literal.clone(),
+            Expression::Integer { token, .. } => token.literal.to_string(),
             Expression::Prefix {
                 operator, right, ..
             } => match right.as_ref() {
                 Some(expression) => format!("({} {})", operator, expression.token_literal()),
                 None => format!("({}{})", operator, "None"),
             },
-            Expression::Identifier(identifier) => identifier.value.clone(),
+            Expression::Identifier(identifier) => identifier.value.to_string(),
             Expression::None => String::from(""),
             Expression::Infix {
                 left,
@@ -136,12 +136,7 @@ impl Expression {
                 parameters, body, ..
             } => format!(
                 "fn ({}) {{ {} }}",
-                parameters
-                    .to_vec()
-                    .iter()
-                    .map(|f| f.to_string())
-                    .collect::<Vec<_>>()
-                    .join(" , "),
+                parameters.to_vec().iter().collect::<Vec<_>>().join(" , "),
                 body
             ),
             Expression::Call {
@@ -173,32 +168,34 @@ impl fmt::Display for Expression {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Program {
+pub struct Program<'a> {
     pub statements: Vec<Statement>,
+    pub arena: StringArena<'a>,
 }
 
-impl Program {
-    pub fn new() -> Self {
+impl<'a> Program<'a> {
+    pub fn new(arena: StringArena<'a>) -> Self {
         Self {
             statements: Vec::new(),
+            arena,
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Identifier {
-    pub token: Token,
-    pub value: String,
+pub struct Identifier<'a> {
+    pub token: Token<'a>,
+    pub value: &'a str,
 }
 
-impl fmt::Display for Identifier {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.token_literal())
-    }
-}
+// impl fmt::Display for Identifier {
+//     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+//         write!(f, "{}", self.token_literal())
+//     }
+// }
 
-impl Identifier {
+impl<'a> Identifier<'a> {
     pub fn token_literal(&self) -> String {
-        self.token.literal.clone()
+        self.token.literal.to_string()
     }
 }

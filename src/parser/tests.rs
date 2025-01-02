@@ -1,4 +1,7 @@
+use bumpalo::Bump;
+
 use crate::{
+    StringArena,
     ast::ast::{Expression, Statement},
     lexer::lexer::Lexer,
     parser::parser::Parser,
@@ -14,8 +17,10 @@ fn test_let_statements() {
 
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
     let program = parser
-        .parse_program()
+        .parse_program(arena)
         .expect("parse_program() returned None");
 
     assert_eq!(
@@ -57,8 +62,10 @@ fn test_return_statements() {
 
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
     let program = parser
-        .parse_program()
+        .parse_program(arena)
         .expect("parse_program() returned None");
 
     assert_eq!(
@@ -88,7 +95,9 @@ fn test_prefix_expression() {
     let input = "something;";
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -106,7 +115,9 @@ fn test_prefix_expression_integer_literal() {
     let input = "5;";
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -126,7 +137,11 @@ fn test_prefix_plus_and_minus() {
         ";
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
+
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -173,7 +188,9 @@ fn test_infix_expressions() {
                 ";
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -210,7 +227,9 @@ fn test_operator_precedence() {
 
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -233,7 +252,9 @@ fn test_operator_precedence_with_braces() {
 
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -259,7 +280,9 @@ fn test_parse_if_expression() {
 
     let lexer = Lexer::new(input.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -284,7 +307,9 @@ fn test_function_literal() {
 
     let lexer = Lexer::new(input_string.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");
     assert_eq!(
@@ -319,7 +344,9 @@ fn test_function_call() {
 
     let lexer = Lexer::new(input_string.to_owned());
     let mut parser = Parser::new(lexer);
-    let program = parser.parse_program();
+    let allocator = Bump::new();
+    let arena = StringArena::new(&allocator);
+    let program = parser.parse_program(arena);
 
     assert!(program.is_some());
     assert!(parser.errors().is_empty(), "Errors while parsing");

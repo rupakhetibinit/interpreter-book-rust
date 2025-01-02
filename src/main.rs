@@ -1,6 +1,7 @@
 use std::io::Write;
 
-use interpreter_book::{Lexer, Parser};
+use bumpalo::Bump;
+use interpreter_book::{Lexer, Parser, StringArena};
 
 fn main() {
     let mut args = std::env::args();
@@ -22,7 +23,9 @@ fn main() {
 
             let lexer = Lexer::new(input);
             let mut parser = Parser::new(lexer);
-            let program = parser.parse_program();
+            let allocator = Bump::new();
+            let arena = StringArena::new(&allocator);
+            let program = parser.parse_program(arena);
             if parser.errors().is_empty() {
                 println!("{:?}", program)
             } else {
