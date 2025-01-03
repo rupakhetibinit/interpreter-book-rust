@@ -155,7 +155,7 @@ impl Parser {
         match self.curr_token.token_type {
             TokenType::Ident => Some(self.parse_identifier()),
             TokenType::Int => self.parse_integer_literal(),
-            TokenType::Plus | TokenType::Minus => self.parse_prefix_expression(),
+            TokenType::Plus | TokenType::Minus | TokenType::Bang => self.parse_prefix_expression(),
             TokenType::True | TokenType::False => self.parse_boolean_expression(),
             TokenType::LParen => self.parse_grouped_expression(),
             TokenType::If => self.parse_if_expression(),

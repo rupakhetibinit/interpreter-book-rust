@@ -361,8 +361,31 @@ fn test_function_call() {
 
 #[test]
 fn test_boolean_expression() {
-    let input = ["true", "false", "3 < 5 == true", "3 > 5 == false"];
-    let expected = ["true", "false", "((3 < 5) == true)", "((3 > 5) == false)"];
+    // {"true == true", true, "==", true},
+    // {"true != false", true, "!=", false},
+    // {"false == false", false, "==", false},
+    let input = [
+        "true",
+        "false",
+        "3 < 5 == true",
+        "3 > 5 == false",
+        "true == true",
+        "false == false",
+        "true != false",
+        "!true",
+        "!false",
+    ];
+    let expected = [
+        "true",
+        "false",
+        "((3 < 5) == true)",
+        "((3 > 5) == false)",
+        "(true == true)",
+        "(false == false)",
+        "(true != false)",
+        "!true",
+        "!false",
+    ];
     let input_string = input.join("\n");
 
     let lexer = Lexer::new(input_string.to_owned());

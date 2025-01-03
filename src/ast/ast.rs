@@ -99,7 +99,7 @@ impl Expression {
             Expression::Prefix {
                 operator, right, ..
             } => match right.as_ref() {
-                Some(expression) => format!("({} {})", operator, expression.token_literal()),
+                Some(expression) => format!("{}{}", operator, expression.token_literal()),
                 None => format!("({}{})", operator, "None"),
             },
             Expression::Identifier(identifier) => identifier.value.to_string(),
