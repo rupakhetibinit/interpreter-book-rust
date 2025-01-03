@@ -8,6 +8,7 @@ pub enum Statement {
     Let {
         token: Token,
         name: Identifier,
+        value: Expression,
     },
     Return {
         token: Token,
@@ -23,8 +24,8 @@ pub enum Statement {
 impl fmt::Display for Statement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Statement::Let { token, name } => {
-                write!(f, "let {} = {};", token.literal, name.value)
+            Statement::Let { token, name, value } => {
+                write!(f, "{} {} = {};", token.literal, name.token.literal, value)
             }
             Statement::Return { value, .. } => {
                 write!(f, "return {};", value.token_literal())

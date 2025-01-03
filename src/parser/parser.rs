@@ -59,44 +59,43 @@ impl Parser {
     }
 
     pub fn parse_return_statement(&mut self) -> Option<Statement> {
-        // if !self.expect_peek(TokenType::Int) {
-        //     return None;
-        // }
+        let token = self.curr_token.clone();
 
-        let stmt = Statement::Return {
-            token: self.curr_token.clone(),
-            value: Expression::None,
-        };
+        self.next_token();
 
-        while !self.curr_token_is(TokenType::Semicolon) {
+        let value = self.parse_expression_w_precedence(Precedence::Lowest)?;
+
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token();
         }
 
-        Some(stmt)
+        Some(Statement::Return { token, value })
     }
 
     pub fn parse_let_statement(&mut self) -> Option<Statement> {
+        let token = self.curr_token.clone();
         if !self.expect_peek(TokenType::Ident) {
             return None;
         }
 
-        let stmt = Statement::Let {
-            name: Identifier {
-                token: self.curr_token.clone(),
-                value: Cow::Owned(self.curr_token.literal.clone()),
-            },
+        let name = Identifier {
             token: self.curr_token.clone(),
+            value: Cow::Owned(self.curr_token.literal.clone()),
         };
 
         if !self.expect_peek(TokenType::Assign) {
             return None;
         }
 
-        while !self.curr_token_is(TokenType::Semicolon) {
+        self.next_token();
+
+        let value = self.parse_expression_w_precedence(Precedence::Lowest)?;
+
+        if self.peek_token_is(TokenType::Semicolon) {
             self.next_token();
         }
 
-        Some(stmt)
+        Some(Statement::Let { token, name, value })
     }
 
     pub fn parse_function_literal(&mut self) -> Option<Expression> {
