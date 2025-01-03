@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use crate::{
     ast::ast::{Expression, Identifier, Program, Statement},
     lexer::{
@@ -81,7 +83,7 @@ impl Parser {
         let stmt = Statement::Let {
             name: Identifier {
                 token: self.curr_token.clone(),
-                value: self.curr_token.literal.clone(),
+                value: Cow::Owned(self.curr_token.literal.clone()),
             },
             token: self.curr_token.clone(),
         };
@@ -154,6 +156,7 @@ impl Parser {
             TokenType::Ident => Some(self.parse_identifier()),
             TokenType::Int => self.parse_integer_literal(),
             TokenType::Plus | TokenType::Minus => self.parse_prefix_expression(),
+            TokenType::True | TokenType::False => self.parse_boolean_expression(),
             TokenType::LParen => self.parse_grouped_expression(),
             TokenType::If => self.parse_if_expression(),
             TokenType::Function => self.parse_function_literal(),
@@ -210,7 +213,7 @@ impl Parser {
     pub fn parse_identifier(&self) -> Expression {
         Expression::Identifier(Identifier {
             token: self.curr_token.clone(),
-            value: self.curr_token.literal.clone(),
+            value: Cow::Owned(self.curr_token.literal.clone()),
         })
     }
 
@@ -339,7 +342,7 @@ impl Parser {
 
         identifiers.push(Identifier {
             token: self.curr_token.clone(),
-            value: self.curr_token.literal.clone(),
+            value: Cow::Owned(self.curr_token.literal.clone()),
         });
 
         while self.peek_token_is(TokenType::Comma) {
@@ -347,7 +350,7 @@ impl Parser {
             self.next_token();
             identifiers.push(Identifier {
                 token: self.curr_token.clone(),
-                value: self.curr_token.literal.clone(),
+                value: Cow::Owned(self.curr_token.literal.clone()),
             });
         }
 
@@ -394,5 +397,12 @@ impl Parser {
         }
 
         Some(args)
+    }
+
+    fn parse_boolean_expression(&self) -> Option<Expression> {
+        return Some(Expression::Boolean {
+            token: self.curr_token.clone(),
+            value: self.curr_token_is(TokenType::True),
+        });
     }
 }

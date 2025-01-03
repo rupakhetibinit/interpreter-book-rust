@@ -357,3 +357,33 @@ fn test_function_call() {
 //         assert_eq!(stmt.to_string(), expect);
 //     }
 // }
+//
+
+#[test]
+fn test_boolean_expression() {
+    let input = ["true", "false", "3 < 5 == true", "3 > 5 == false"];
+    let expected = ["true", "false", "((3 < 5) == true)", "((3 > 5) == false)"];
+    let input_string = input.join("\n");
+
+    let lexer = Lexer::new(input_string.to_owned());
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    assert!(program.is_some());
+    assert!(parser.errors().is_empty(), "Errors while parsing");
+    dbg!("{}", parser.errors().clone());
+    assert_eq!(
+        program.clone().unwrap().statements.len(),
+        input.len(),
+        "Program statements did not match"
+    );
+
+    let program = program.unwrap();
+    for (statement, expected_output) in program.statements.iter().zip(&expected) {
+        match statement {
+            expression => {
+                assert_eq!(expression.to_string(), expected_output.to_string())
+            }
+        }
+    }
+}

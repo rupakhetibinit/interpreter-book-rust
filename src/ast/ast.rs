@@ -1,4 +1,5 @@
 use core::fmt;
+use std::borrow::Cow;
 
 use crate::lexer::token::Token;
 
@@ -56,6 +57,10 @@ pub enum Expression {
         token: Token,
         value: i64,
     },
+    Boolean {
+        token: Token,
+        value: bool,
+    },
     Prefix {
         token: Token,
         operator: String,
@@ -97,7 +102,7 @@ impl Expression {
                 Some(expression) => format!("({} {})", operator, expression.token_literal()),
                 None => format!("({}{})", operator, "None"),
             },
-            Expression::Identifier(identifier) => identifier.value.clone(),
+            Expression::Identifier(identifier) => identifier.value.to_string(),
             Expression::None => String::from(""),
             Expression::Infix {
                 left,
@@ -162,6 +167,7 @@ impl Expression {
                 }
                 format!("{}({})", function.token_literal(), args)
             }
+            Expression::Boolean { value, .. } => format!("{}", value.to_string()),
         }
     }
 }
@@ -188,7 +194,7 @@ impl Program {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Identifier {
     pub token: Token,
-    pub value: String,
+    pub value: Cow<'static, str>,
 }
 
 impl fmt::Display for Identifier {
