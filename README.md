@@ -6,9 +6,9 @@ The Monkey programming langanguage is outlined in [Interpreter Book](https://int
 
 ### Done
 - [x] Lexer
+- [x] Parser
 
 ### TODO
-- [ ] Parser
 - [ ] Evaluator
 - [ ] REPL
 - [ ] VM(maybe)
