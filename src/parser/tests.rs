@@ -361,9 +361,6 @@ fn test_function_call() {
 
 #[test]
 fn test_boolean_expression() {
-    // {"true == true", true, "==", true},
-    // {"true != false", true, "!=", false},
-    // {"false == false", false, "==", false},
     let input = [
         "true",
         "false",
@@ -410,3 +407,64 @@ fn test_boolean_expression() {
         }
     }
 }
+
+#[test]
+fn test_boolean_precedence_expression() {
+    let input = [
+        "1 + (2 + 3) + 4;",
+        "(5 + 5) * 2;",
+        "2 / (5 + 5);",
+        "-(5 + 5);",
+        "!(true == true);",
+    ];
+    let expected = [
+        "((1 + (2 + 3)) + 4)",
+        "((5 + 5) * 2)",
+        "(2 / (5 + 5))",
+        "-(5 + 5)",
+        "!(true == true)",
+    ];
+    let input_string = input.join("\n");
+
+    let lexer = Lexer::new(input_string.to_owned());
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+
+    assert!(program.is_some());
+    assert!(parser.errors().is_empty(), "Errors while parsing");
+    dbg!("{}", parser.errors().clone());
+    assert_eq!(
+        program.clone().unwrap().statements.len(),
+        input.len(),
+        "Program statements did not match"
+    );
+
+    let program = program.unwrap();
+    for (statement, expected_output) in program.statements.iter().zip(&expected) {
+        match statement {
+            expression => {
+                assert_eq!(expression.to_string(), expected_output.to_string())
+            }
+        }
+    }
+}
+// {
+// "1 + (2 + 3) + 4",
+// "((1 + (2 + 3)) + 4)",
+// },
+// {
+// "(5 + 5) * 2",
+// "((5 + 5) * 2)",
+// },
+// {
+// "2 / (5 + 5)",
+// "(2 / (5 + 5))",
+// },
+// {
+// "-(5 + 5)",
+// "(-(5 + 5))",
+// },
+// {
+// "!(true == true)",
+// "(!(true == true))",
+// },
