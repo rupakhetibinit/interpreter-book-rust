@@ -10,15 +10,15 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Parser {
-    pub lexer: Lexer,
-    pub curr_token: Token,
-    pub peek_token: Token,
+pub struct Parser<'a> {
+    pub lexer: Lexer<'a>,
+    pub curr_token: Token<'a>,
+    pub peek_token: Token<'a>,
     pub errors: Vec<String>,
 }
 
-impl Parser {
-    pub fn new(lexer: Lexer) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(lexer: Lexer<'a>) -> Self {
         let mut p = Parser {
             lexer,
             curr_token: Token::default(),

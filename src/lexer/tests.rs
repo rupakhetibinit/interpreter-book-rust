@@ -98,7 +98,7 @@ return true;
         (TokenType::Eof, ""),
     ];
 
-    let mut lexer = Lexer::new(input.to_owned());
+    let mut lexer = Lexer::new(input);
 
     for (i, (expected_type, expected_literal)) in tests.iter().enumerate() {
         let token = lexer.next_token();

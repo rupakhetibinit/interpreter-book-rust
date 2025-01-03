@@ -1,103 +1,103 @@
+use std::{iter::Peekable, str::Chars};
+
 use super::{Token, TokenType};
 
 #[derive(Debug, Clone)]
-pub struct Lexer {
-    input: String,
+pub struct Lexer<'a> {
+    original_input: &'a str,
+    input: Peekable<Chars<'a>>,
     position: usize,
-    read_position: usize,
-    ch: char,
 }
 
-impl Lexer {
-    pub fn new(input: String) -> Self {
-        let mut lexer = Lexer {
-            input,
+impl<'a> Lexer<'a> {
+    pub fn new(input: &'a str) -> Self {
+        Lexer {
+            original_input: input,
+            input: input.chars().peekable(),
             position: 0,
-            read_position: 0,
-            ch: 0 as char,
-        };
-
-        lexer.read_char();
-        lexer
-    }
-
-    pub fn read_char(&mut self) {
-        if self.read_position > self.input.len() {
-            self.ch = '\0'
-        } else {
-            self.ch = self.input.chars().nth(self.read_position).unwrap_or('\0')
         }
-        self.position = self.read_position;
-        self.read_position += 1;
     }
 
     pub fn next_token(&mut self) -> Token {
         self.skip_whitespace();
 
-        let token = match self.ch {
-            '=' => {
-                if self.peek_char() == '=' {
-                    self.read_char();
+        let token = match self.input.next() {
+            Some('=') => {
+                if self.input.peek() == Some(&'=') {
+                    self.input.next();
                     Token::new(TokenType::Eq, "==")
                 } else {
                     Token::new(TokenType::Assign, "=")
                 }
             }
-            '{' => Token::new(TokenType::LBrace, "{"),
-            '}' => Token::new(TokenType::RBrace, "}"),
-            '+' => Token::new(TokenType::Plus, "+"),
-            '-' => Token::new(TokenType::Minus, "-"),
-            '<' => Token::new(TokenType::Lt, "<"),
-            '>' => Token::new(TokenType::Gt, ">"),
-            '!' => {
-                if self.peek_char() == '=' {
-                    self.read_char();
+            Some('{') => Token::new(TokenType::LBrace, "{"),
+            Some('}') => Token::new(TokenType::RBrace, "}"),
+            Some('+') => Token::new(TokenType::Plus, "+"),
+            Some('-') => Token::new(TokenType::Minus, "-"),
+            Some('<') => Token::new(TokenType::Lt, "<"),
+            Some('>') => Token::new(TokenType::Gt, ">"),
+            Some('!') => {
+                if self.input.peek() == Some(&'=') {
+                    self.input.next();
                     Token::new(TokenType::NotEq, "!=")
                 } else {
                     Token::new(TokenType::Bang, "!")
                 }
             }
-            '*' => Token::new(TokenType::Asterisk, "*"),
-            '/' => Token::new(TokenType::Slash, "/"),
-            ',' => Token::new(TokenType::Comma, ","),
-            ';' => Token::new(TokenType::Semicolon, ";"),
-            '(' => Token::new(TokenType::LParen, "("),
-            ')' => Token::new(TokenType::RParen, ")"),
-            '\u{0}' => Token::new(TokenType::Eof, ""),
-            c if c.is_alphabetic() || c == '_' => {
-                let literal = self.read_identifier();
-                let tok_type = self.lookup_identifier(&literal);
+            Some('*') => Token::new(TokenType::Asterisk, "*"),
+            Some('/') => Token::new(TokenType::Slash, "/"),
+            Some(',') => Token::new(TokenType::Comma, ","),
+            Some(';') => Token::new(TokenType::Semicolon, ";"),
+            Some('(') => Token::new(TokenType::LParen, "("),
+            Some(')') => Token::new(TokenType::RParen, ")"),
+            None => Token::new(TokenType::Eof, ""),
+            Some(c) if c.is_alphabetic() || c == '_' => {
+                let literal = self.read_identifier(c);
+                let tok_type = self.lookup_identifier(literal);
                 return Token::new(tok_type, &literal);
             }
-            c if c.is_ascii_digit() => {
-                let literal = self.read_number();
-                return Token::new(TokenType::Int, &literal);
+            Some(c) if c.is_ascii_digit() => {
+                let literal = self.read_number(c);
+                return Token::new(TokenType::Int, literal);
             }
-            _ => Token::new(TokenType::Illegal, &self.ch.to_string()),
+            Some(_) => Token::new(TokenType::Illegal, "Illegal"),
         };
-        self.read_char();
         token
     }
 
-    fn read_identifier(&mut self) -> String {
-        let start_position = self.position;
-        while self.ch.is_alphabetic() || self.ch == '_' {
-            self.read_char();
+    fn read_identifier(&mut self, start: char) -> &'a str {
+        let start_pos = self.position + start.len_utf8();
+        while let Some(&c) = self.input.peek() {
+            if c.is_alphanumeric() || c == '_' {
+                self.position += c.len_utf8();
+                self.input.next();
+            } else {
+                break;
+            }
         }
-        self.input[start_position..self.position].to_string()
+        &self.original_input[start_pos..self.position]
     }
 
-    fn read_number(&mut self) -> String {
-        let start_position = self.position;
-        while self.ch.is_ascii_digit() {
-            self.read_char();
+    fn read_number(&mut self, start: char) -> &'a str {
+        let start_pos = self.position + start.len_utf8();
+        while let Some(&c) = self.input.peek() {
+            if c.is_ascii_digit() {
+                self.position += c.len_utf8();
+                self.input.next();
+            } else {
+                break;
+            }
         }
-        self.input[start_position..self.position].to_string()
+        &self.original_input[start_pos..self.position]
     }
 
     fn skip_whitespace(&mut self) {
-        while self.ch.is_whitespace() || self.ch == '\t' || self.ch == '\r' || self.ch == '\n' {
-            self.read_char();
+        while let Some(&c) = self.input.peek() {
+            if c.is_whitespace() {
+                self.input.next();
+            } else {
+                break;
+            }
         }
     }
 
@@ -111,14 +111,6 @@ impl Lexer {
             "if" => TokenType::If,
             "return" => TokenType::Return,
             _ => TokenType::Ident,
-        }
-    }
-
-    fn peek_char(&self) -> char {
-        if self.read_position >= self.input.len() {
-            0 as char
-        } else {
-            self.input.chars().nth(self.read_position).unwrap()
         }
     }
 }

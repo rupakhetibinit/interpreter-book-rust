@@ -231,7 +231,7 @@ fn test_operator_precedence_with_braces() {
                 (5 * 5 * 2 + (10 / 2)) + (10 * 5 - 2);
                 ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -257,7 +257,7 @@ fn test_parse_if_expression() {
             if (x < 5) { 2 + 2; }
                 ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -282,7 +282,7 @@ fn test_function_literal() {
     let expected = ["fn (x , y) { (x + y) }", "fn (x) {  }"];
     let input_string = input.join("\n");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let lexer = Lexer::new(input_string.as_str());
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -317,7 +317,7 @@ fn test_function_call() {
     ];
     let input_string = input.join("\n");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let lexer = Lexer::new(&input_string.as_str());
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -366,7 +366,7 @@ fn test_boolean_expression() {
     ];
     let input_string = input.join("\n");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let lexer = Lexer::new(input_string.as_str());
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -407,7 +407,7 @@ fn test_boolean_precedence_expression() {
     ];
     let input_string = input.join(";");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let lexer = Lexer::new(input_string.as_str());
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -448,7 +448,7 @@ fn test_let_and_return_statements() {
     ];
     let input_string = input.join(";");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let lexer = Lexer::new(input_string.as_str());
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
