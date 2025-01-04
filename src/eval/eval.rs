@@ -7,8 +7,8 @@ pub fn eval(node: ast::Statement) -> Object {
         ast::Statement::Return { token, value } => todo!(),
         ast::Statement::Block { token, statements } => todo!(),
         ast::Statement::Expression(expression) => match expression {
-            ast::Expression::Integer { token, value } => return Object::Int(value),
-            ast::Expression::Boolean { token, value } => todo!(),
+            ast::Expression::Integer { value, .. } => return Object::Int(value),
+            ast::Expression::Boolean { value, .. } => return Object::Bool(value),
             ast::Expression::Prefix {
                 token,
                 operator,
