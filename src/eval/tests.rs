@@ -6,7 +6,7 @@ pub fn test_int_eval() {
     let expected = [5, 10];
 
     for (input, expected) in input.iter().zip(expected) {
-        let lexer = Lexer::new(input.to_string());
+        let lexer = Lexer::new(input);
         let mut parser = Parser::new(lexer);
 
         let program = parser.parse_program();

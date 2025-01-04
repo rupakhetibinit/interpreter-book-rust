@@ -1,15 +1,15 @@
 use super::{Token, TokenType};
 
 #[derive(Debug, Clone)]
-pub struct Lexer {
-    input: String,
+pub struct Lexer<'input> {
+    input: &'input str,
     position: usize,
     read_position: usize,
     ch: char,
 }
 
-impl Lexer {
-    pub fn new(input: String) -> Self {
+impl<'a> Lexer<'a> {
+    pub fn new(input: &'a str) -> Self {
         let mut lexer = Lexer {
             input,
             position: 0,

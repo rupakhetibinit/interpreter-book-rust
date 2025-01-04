@@ -10,15 +10,15 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Parser {
-    pub lexer: Lexer,
+pub struct Parser<'a> {
+    pub lexer: Lexer<'a>,
     pub curr_token: Token,
     pub peek_token: Token,
     pub errors: Vec<String>,
 }
 
-impl Parser {
-    pub fn new(lexer: Lexer) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(lexer: Lexer<'a>) -> Self {
         let mut p = Parser {
             lexer,
             curr_token: Token::default(),
@@ -113,11 +113,11 @@ impl Parser {
 
         let body = Box::new(self.parse_block_statement());
 
-        return Some(Expression::Function {
+        Some(Expression::Function {
             token,
             parameters,
             body,
-        });
+        })
     }
 
     pub fn curr_token_is(&self, token_type: TokenType) -> bool {
@@ -305,12 +305,12 @@ impl Parser {
 
         let consequence = Box::new(self.parse_block_statement());
 
-        return Some(Expression::If {
+        Some(Expression::If {
             token,
             condition,
             consequence,
             alternative: None,
-        });
+        })
     }
 
     fn parse_block_statement(&mut self) -> Statement {
@@ -319,14 +319,13 @@ impl Parser {
 
         while !self.curr_token_is(TokenType::RBrace) && !self.curr_token_is(TokenType::Eof) {
             let stmt = self.parse_statement();
-            match stmt {
-                Some(x) => statements.push(x),
-                None => {}
+            if let Some(x) = stmt {
+                statements.push(x)
             };
             self.next_token();
         }
 
-        return Statement::Block { token, statements };
+        Statement::Block { token, statements }
     }
 
     fn parse_function_parameters(&mut self) -> Option<Vec<Identifier>> {
@@ -399,9 +398,9 @@ impl Parser {
     }
 
     fn parse_boolean_expression(&self) -> Option<Expression> {
-        return Some(Expression::Boolean {
+        Some(Expression::Boolean {
             token: self.curr_token.clone(),
             value: self.curr_token_is(TokenType::True),
-        });
+        })
     }
 }
