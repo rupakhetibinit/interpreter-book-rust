@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use interpreter_book::eval::object::Object;
 use interpreter_book::{Lexer, Parser};
 
 fn main() {
@@ -23,8 +24,14 @@ fn main() {
             let lexer = Lexer::new(input);
             let mut parser = Parser::new(lexer);
             if let Some(program) = parser.parse_program() {
-                for stmt in program.statements.iter() {
-                    println!("{}", stmt)
+                if parser.errors.is_empty() {
+                    for stmt in program.statements.iter() {
+                        println!("{}", stmt)
+                    }
+                } else {
+                    for error in parser.errors.iter() {
+                        println!("{}", error)
+                    }
                 }
             }
         }
