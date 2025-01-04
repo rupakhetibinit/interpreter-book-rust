@@ -1,5 +1,5 @@
 use super::object::Object;
-use crate::ast::ast;
+use crate::ast::{Program, ast};
 
 pub fn eval(node: ast::Statement) -> Object {
     match node {
@@ -40,4 +40,12 @@ pub fn eval(node: ast::Statement) -> Object {
             ast::Expression::None => todo!(),
         },
     }
+}
+
+pub fn eval_program(program: &mut Program) -> Object {
+    let mut result: Object = Object::Null;
+    for stmt in program.statements.iter() {
+        result = eval(stmt.clone())
+    }
+    result
 }
