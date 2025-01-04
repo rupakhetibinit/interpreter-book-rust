@@ -31,7 +31,7 @@ impl<'a> Lexer<'a> {
         self.read_position += 1;
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token<'a> {
         self.skip_whitespace();
 
         let token = match self.ch {
@@ -67,32 +67,35 @@ impl<'a> Lexer<'a> {
             c if c.is_alphabetic() || c == '_' => {
                 let literal = self.read_identifier();
                 let tok_type = self.lookup_identifier(&literal);
-                return Token::new(tok_type, &literal);
+                return Token::new(tok_type, literal);
             }
             c if c.is_ascii_digit() => {
                 let literal = self.read_number();
-                return Token::new(TokenType::Int, &literal);
+                return Token::new(TokenType::Int, literal);
             }
-            _ => Token::new(TokenType::Illegal, &self.ch.to_string()),
+            _ => Token::new(
+                TokenType::Illegal,
+                &self.input[self.position..self.position],
+            ),
         };
         self.read_char();
         token
     }
 
-    fn read_identifier(&mut self) -> String {
+    fn read_identifier(&mut self) -> &'a str {
         let start_position = self.position;
         while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
         }
-        self.input[start_position..self.position].to_string()
+        &self.input[start_position..self.position]
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> &'a str {
         let start_position = self.position;
         while self.ch.is_ascii_digit() {
             self.read_char();
         }
-        self.input[start_position..self.position].to_string()
+        &self.input[start_position..self.position]
     }
 
     fn skip_whitespace(&mut self) {

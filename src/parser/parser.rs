@@ -12,8 +12,8 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct Parser<'a> {
     pub lexer: Lexer<'a>,
-    pub curr_token: Token,
-    pub peek_token: Token,
+    pub curr_token: Token<'a>,
+    pub peek_token: Token<'a>,
     pub errors: Vec<String>,
 }
 
@@ -38,15 +38,33 @@ impl<'a> Parser<'a> {
         self.peek_token = self.lexer.next_token();
     }
 
-    pub fn parse_program(&mut self) -> Option<Program> {
+    // pub fn parse_program(&mut self) -> Option<Program<'a>> {
+    //     let mut program = Program::new();
+    //     loop {
+    //         if self.curr_token.token_type == TokenType::Eof {
+    //             break;
+    //         }
+    //         if let Some(stmt) = self.parse_statement() {
+    //             program.statements.push(stmt);
+    //         }
+    //         self.next_token();
+    //     }
+    //     Some(program)
+
+    // }
+    pub fn parse_program(&mut self) -> Option<Program<'a>> {
         let mut program = Program::new();
 
-        while !self.curr_token_is(TokenType::Eof) {
+        while {
+            let token_type = self.curr_token.token_type.clone(); // Clone the token type to avoid immutable borrow
+            token_type != TokenType::Eof
+        } {
             if let Some(stmt) = self.parse_statement() {
                 program.statements.push(stmt);
             }
             self.next_token();
         }
+
         Some(program)
     }
 
@@ -61,7 +79,7 @@ impl<'a> Parser<'a> {
     pub fn parse_return_statement(&mut self) -> Option<Statement> {
         let token = self.curr_token.clone();
 
-        self.next_token();
+        self.clone().next_token();
 
         let value = self.parse_expression_w_precedence(Precedence::Lowest)?;
 

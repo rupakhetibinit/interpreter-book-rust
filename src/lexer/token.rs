@@ -38,21 +38,21 @@ pub enum TokenType {
 }
 
 #[derive(Debug, Eq, PartialEq, Clone, Default)]
-pub struct Token {
+pub struct Token<'a> {
     pub token_type: TokenType,
-    pub literal: String,
+    pub literal: &'a str,
 }
 
-impl Token {
-    pub fn new(token_type: TokenType, literal: &str) -> Self {
+impl<'a> Token<'a> {
+    pub fn new(token_type: TokenType, literal: &'a str) -> Self {
         Self {
             token_type,
-            literal: literal.to_string(),
+            literal,
         }
     }
 }
 
-impl fmt::Display for Token {
+impl<'a> fmt::Display for Token<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
