@@ -68,8 +68,6 @@ fn test_return_statements() {
         program.statements.len()
     );
 
-    dbg!("{}", program.clone());
-
     for stmt in program.statements.iter() {
         if let Statement::Return { token, .. } = stmt {
             assert_eq!(

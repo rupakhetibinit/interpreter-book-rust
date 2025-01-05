@@ -1,6 +1,6 @@
 use core::fmt;
 
-#[derive(Debug, PartialEq, Eq, Clone, Default)]
+#[derive(Debug, PartialEq, Eq, Clone, Default, Copy)]
 pub enum TokenType {
     Illegal,
     Eof,
@@ -37,7 +37,7 @@ pub enum TokenType {
     NotSet,
 }
 
-#[derive(Debug, Eq, PartialEq, Clone, Default)]
+#[derive(Debug, Eq, PartialEq, Clone, Default, Copy)]
 pub struct Token<'a> {
     pub token_type: TokenType,
     pub literal: &'a str,

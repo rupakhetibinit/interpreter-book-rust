@@ -32,7 +32,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn next_token(&mut self) {
-        self.curr_token = self.peek_token.clone();
+        self.curr_token = self.peek_token;
         self.peek_token = self.lexer.next_token();
     }
 
@@ -57,7 +57,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_return_statement(&mut self) -> Option<Statement<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
 
         self.next_token();
 
@@ -71,13 +71,13 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_let_statement(&mut self) -> Option<Statement<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
         if !self.expect_peek(TokenType::Ident) {
             return None;
         }
 
         let name = Identifier {
-            token: self.curr_token.clone(),
+            token: self.curr_token,
             value: self.curr_token.literal,
         };
 
@@ -97,7 +97,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_function_literal(&mut self) -> Option<Expression<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
 
         if !self.expect_peek(TokenType::LParen) {
             return None;
@@ -127,7 +127,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn expect_peek(&mut self, token_type: TokenType) -> bool {
-        if self.peek_token_is(token_type.clone()) {
+        if self.peek_token_is(token_type) {
             self.next_token();
             true
         } else {
@@ -177,7 +177,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_prefix_expression(&mut self) -> Option<Expression<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
         let operator = self.curr_token.literal;
 
         self.next_token();
@@ -192,7 +192,7 @@ impl<'a> Parser<'a> {
     }
 
     pub fn parse_infix_expression(&mut self, left: Expression<'a>) -> Option<Expression<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
         let operator = self.curr_token.literal;
         let left = Box::new(left);
         let precedence = self.curr_precedence();
@@ -209,7 +209,7 @@ impl<'a> Parser<'a> {
 
     pub fn parse_identifier(&self) -> Expression<'a> {
         Expression::Identifier(Identifier {
-            token: self.curr_token.clone(),
+            token: self.curr_token,
             value: self.curr_token.literal,
         })
     }
@@ -224,7 +224,7 @@ impl<'a> Parser<'a> {
         })?;
 
         Some(Expression::Integer {
-            token: self.curr_token.clone(),
+            token: self.curr_token,
             value: literal,
         })
     }
@@ -266,11 +266,11 @@ impl<'a> Parser<'a> {
     }
 
     pub fn peek_precedence(&self) -> Precedence {
-        Self::get_precedence_of_token(self.peek_token.token_type.clone())
+        Self::get_precedence_of_token(self.peek_token.token_type)
     }
 
     pub fn curr_precedence(&self) -> Precedence {
-        Self::get_precedence_of_token(self.curr_token.token_type.clone())
+        Self::get_precedence_of_token(self.curr_token.token_type)
     }
 
     fn parse_grouped_expression(&mut self) -> Option<Expression<'a>> {
@@ -286,7 +286,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_if_expression(&mut self) -> Option<Expression<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
 
         if !self.expect_peek(TokenType::LParen) {
             return None;
@@ -316,7 +316,7 @@ impl<'a> Parser<'a> {
 
     fn parse_block_statement(&mut self) -> Statement<'a> {
         let mut statements: Vec<Statement> = Vec::new();
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
 
         while !self.curr_token_is(TokenType::RBrace) && !self.curr_token_is(TokenType::Eof) {
             let stmt = self.parse_statement();
@@ -340,7 +340,7 @@ impl<'a> Parser<'a> {
         self.next_token();
 
         identifiers.push(Identifier {
-            token: self.curr_token.clone(),
+            token: self.curr_token,
             value: self.curr_token.literal,
         });
 
@@ -348,7 +348,7 @@ impl<'a> Parser<'a> {
             self.next_token();
             self.next_token();
             identifiers.push(Identifier {
-                token: self.curr_token.clone(),
+                token: self.curr_token,
                 value: self.curr_token.literal,
             });
         }
@@ -361,7 +361,7 @@ impl<'a> Parser<'a> {
     }
 
     fn parse_call_expression(&mut self, expression: Expression<'a>) -> Option<Expression<'a>> {
-        let token = self.curr_token.clone();
+        let token = self.curr_token;
         let function = Box::new(expression);
 
         let arguments = self.parse_call_arguments();
@@ -400,7 +400,7 @@ impl<'a> Parser<'a> {
 
     fn parse_boolean_expression(&self) -> Option<Expression<'a>> {
         Some(Expression::Boolean {
-            token: self.curr_token.clone(),
+            token: self.curr_token,
             value: self.curr_token_is(TokenType::True),
         })
     }
