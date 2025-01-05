@@ -12,7 +12,7 @@ fn test_let_statements() {
         let foobar = 838383;
         ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser
         .parse_program()
@@ -55,7 +55,7 @@ fn test_return_statements() {
             return 234124;
                 ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser
         .parse_program()
@@ -67,6 +67,8 @@ fn test_return_statements() {
         "program.statements does not contain 1 statements. got={}",
         program.statements.len()
     );
+
+    dbg!("{}", program.clone());
 
     for stmt in program.statements.iter() {
         if let Statement::Return { token, .. } = stmt {
@@ -86,7 +88,7 @@ fn test_return_statements() {
 #[test]
 fn test_prefix_expression() {
     let input = "something;";
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -98,13 +100,13 @@ fn test_prefix_expression() {
     );
     let program = program.unwrap();
 
-    assert_eq!(program.statements[0].token_literal(), "something")
+    assert_eq!(program.statements[0].to_string(), "something")
 }
 
 #[test]
 fn test_prefix_expression_integer_literal() {
     let input = "5;";
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -116,7 +118,7 @@ fn test_prefix_expression_integer_literal() {
     );
     let program = program.unwrap();
 
-    assert_eq!(program.statements[0].token_literal(), "5")
+    assert_eq!(program.statements[0].to_string(), "5")
 }
 
 #[test]
@@ -124,7 +126,7 @@ fn test_prefix_plus_and_minus() {
     let input = "+5;
         -20;
         ";
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -147,7 +149,7 @@ fn test_prefix_plus_and_minus() {
             {
                 println!("{}, {}, {:?}", token, operator, right);
                 assert_eq!(token.literal, expected_identifier.0);
-                assert_eq!(operator, expected_identifier.0);
+                assert_eq!(operator.to_string(), expected_identifier.0);
                 assert_eq!(
                     right.clone().unwrap().token_literal(),
                     expected_identifier.1
@@ -171,7 +173,7 @@ fn test_infix_expressions() {
                 5 == 7;
                 5 != 7;
                 ";
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -208,7 +210,7 @@ fn test_operator_precedence() {
                 5 * 5 * 2 + 10 * 5 - 2;
                 ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -231,7 +233,7 @@ fn test_operator_precedence_with_braces() {
                 (5 * 5 * 2 + (10 / 2)) + (10 * 5 - 2);
                 ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -257,7 +259,7 @@ fn test_parse_if_expression() {
             if (x < 5) { 2 + 2; }
                 ";
 
-    let lexer = Lexer::new(input.to_owned());
+    let lexer = Lexer::new(input);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -269,11 +271,8 @@ fn test_parse_if_expression() {
     );
 
     let program = program.unwrap();
-    match &program.statements[0] {
-        expression => {
-            assert_eq!(expression.to_string(), "if (x < 5) { (2 + 2) }")
-        }
-    }
+    let expression = &program.statements[0];
+    assert_eq!(expression.to_string(), "if (x < 5) { (2 + 2) }")
 }
 
 #[test]
@@ -282,7 +281,8 @@ fn test_function_literal() {
     let expected = ["fn (x , y) { (x + y) }", "fn (x) {  }"];
     let input_string = input.join("\n");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let binding = input_string.to_owned();
+    let lexer = Lexer::new(&binding);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
     assert!(program.is_some());
@@ -295,11 +295,8 @@ fn test_function_literal() {
 
     let program = program.unwrap();
     for (statement, expected_output) in program.statements.iter().zip(&expected) {
-        match statement {
-            expression => {
-                assert_eq!(expression.to_string(), expected_output.to_string())
-            }
-        }
+        let expression = statement;
+        assert_eq!(expression.to_string(), expected_output.to_string())
     }
 }
 
@@ -317,7 +314,8 @@ fn test_function_call() {
     ];
     let input_string = input.join("\n");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let binding = input_string.to_owned();
+    let lexer = Lexer::new(&binding);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -332,11 +330,8 @@ fn test_function_call() {
 
     let program = program.unwrap();
     for (statement, expected_output) in program.statements.iter().zip(&expected) {
-        match statement {
-            expression => {
-                assert_eq!(expression.to_string(), expected_output.to_string())
-            }
-        }
+        let expression = statement;
+        assert_eq!(expression.to_string(), expected_output.to_string())
     }
 }
 
@@ -364,9 +359,10 @@ fn test_boolean_expression() {
         "!true",
         "!false",
     ];
-    let input_string = input.join("\n");
+    let input_string = input.join(";");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let binding = input_string.to_owned();
+    let lexer = Lexer::new(&binding);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -381,11 +377,8 @@ fn test_boolean_expression() {
 
     let program = program.unwrap();
     for (statement, expected_output) in program.statements.iter().zip(&expected) {
-        match statement {
-            expression => {
-                assert_eq!(expression.to_string(), expected_output.to_string())
-            }
-        }
+        let expression = statement;
+        assert_eq!(expression.to_string(), expected_output.to_string())
     }
 }
 
@@ -407,7 +400,8 @@ fn test_boolean_precedence_expression() {
     ];
     let input_string = input.join(";");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let binding = input_string.to_owned();
+    let lexer = Lexer::new(&binding);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -422,11 +416,8 @@ fn test_boolean_precedence_expression() {
 
     let program = program.unwrap();
     for (statement, expected_output) in program.statements.iter().zip(&expected) {
-        match statement {
-            expression => {
-                assert_eq!(expression.to_string(), expected_output.to_string())
-            }
-        }
+        let expression = statement;
+        assert_eq!(expression.to_string(), expected_output.to_string())
     }
 }
 
@@ -448,7 +439,8 @@ fn test_let_and_return_statements() {
     ];
     let input_string = input.join(";");
 
-    let lexer = Lexer::new(input_string.to_owned());
+    let binding = input_string.to_owned();
+    let lexer = Lexer::new(&binding);
     let mut parser = Parser::new(lexer);
     let program = parser.parse_program();
 
@@ -463,10 +455,7 @@ fn test_let_and_return_statements() {
 
     let program = program.unwrap();
     for (statement, expected_output) in program.statements.iter().zip(&expected) {
-        match statement {
-            expression => {
-                assert_eq!(expression.to_string(), expected_output.to_string())
-            }
-        }
+        let expression = statement;
+        assert_eq!(expression.to_string(), expected_output.to_string())
     }
 }

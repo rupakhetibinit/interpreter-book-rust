@@ -1,27 +1,26 @@
 use core::fmt;
-use std::borrow::Cow;
 
 use crate::lexer::token::Token;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Statement {
+pub enum Statement<'s> {
     Let {
-        token: Token,
-        name: Identifier,
-        value: Expression,
+        token: Token<'s>,
+        name: Identifier<'s>,
+        value: Expression<'s>,
     },
     Return {
-        token: Token,
-        value: Expression,
+        token: Token<'s>,
+        value: Expression<'s>,
     },
     Block {
-        token: Token,
-        statements: Vec<Statement>,
+        token: Token<'s>,
+        statements: Vec<Statement<'s>>,
     },
-    Expression(Expression),
+    Expression(Expression<'s>),
 }
 
-impl fmt::Display for Statement {
+impl fmt::Display for Statement<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Statement::Let { token, name, value } => {
@@ -41,62 +40,62 @@ impl fmt::Display for Statement {
     }
 }
 
-impl Statement {
+impl Statement<'_> {
     pub fn token_literal(&self) -> String {
         match self {
-            Statement::Let { token, .. } => token.literal.clone(),
-            Statement::Return { token, .. } => token.literal.clone(),
-            Statement::Expression(expression) => expression.token_literal(),
-            Statement::Block { token, .. } => token.literal.clone(),
+            Statement::Let { token, .. } => token.literal.to_string(),
+            Statement::Return { token, .. } => token.literal.to_string(),
+            Statement::Expression(expression) => expression.token_literal().to_string(),
+            Statement::Block { token, .. } => token.literal.to_string(),
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Expression {
+pub enum Expression<'e> {
     Integer {
-        token: Token,
+        token: Token<'e>,
         value: i64,
     },
     Boolean {
-        token: Token,
+        token: Token<'e>,
         value: bool,
     },
     Prefix {
-        token: Token,
-        operator: String,
-        right: Box<Option<Expression>>,
+        token: Token<'e>,
+        operator: &'e str,
+        right: Box<Option<Expression<'e>>>,
     },
     Infix {
-        token: Token,
-        operator: String,
-        right: Box<Expression>,
-        left: Box<Expression>,
+        token: Token<'e>,
+        operator: &'e str,
+        right: Box<Expression<'e>>,
+        left: Box<Expression<'e>>,
     },
     If {
-        token: Token,
-        condition: Box<Expression>,
-        consequence: Box<Statement>,
-        alternative: Option<Box<Statement>>,
+        token: Token<'e>,
+        condition: Box<Expression<'e>>,
+        consequence: Box<Statement<'e>>,
+        alternative: Option<Box<Statement<'e>>>,
     },
     Function {
-        token: Token,
-        parameters: Vec<Identifier>,
-        body: Box<Statement>,
+        token: Token<'e>,
+        parameters: Vec<Identifier<'e>>,
+        body: Box<Statement<'e>>,
     },
     Call {
-        token: Token,
-        function: Box<Expression>,
-        arguments: Option<Vec<Expression>>,
+        token: Token<'e>,
+        function: Box<Expression<'e>>,
+        arguments: Option<Vec<Expression<'e>>>,
     },
-    Identifier(Identifier),
+    Identifier(Identifier<'e>),
     None,
 }
 
-impl Expression {
+impl Expression<'_> {
     pub fn token_literal(&self) -> String {
         match self {
-            Expression::Integer { token, .. } => token.literal.clone(),
+            Expression::Integer { token, .. } => token.literal.to_owned(),
             Expression::Prefix {
                 operator, right, ..
             } => match right.as_ref() {
@@ -110,33 +109,20 @@ impl Expression {
                 operator,
                 right,
                 ..
-            } => {
-                format!(
-                    "({} {} {})",
-                    left.token_literal(),
-                    operator,
-                    right.token_literal()
-                )
-            }
+            } => format!(
+                "({} {} {})",
+                left.token_literal(),
+                operator,
+                right.token_literal()
+            ),
             Expression::If {
                 condition,
                 consequence,
                 alternative,
                 ..
             } => match alternative {
-                Some(x) => {
-                    format!(
-                        "if {} {} else {}",
-                        condition.to_string(),
-                        consequence.to_string(),
-                        x.to_string(),
-                    )
-                }
-                None => format!(
-                    "if {} {{ {} }}",
-                    condition.to_string(),
-                    consequence.to_string(),
-                ),
+                Some(x) => format!("if {} {} else {}", condition, consequence, x,),
+                None => format!("if {} {{ {} }}", condition, consequence,),
             },
             Expression::Function {
                 parameters, body, ..
@@ -168,23 +154,23 @@ impl Expression {
                 }
                 format!("{}({})", function.token_literal(), args)
             }
-            Expression::Boolean { value, .. } => format!("{}", value.to_string()),
+            Expression::Boolean { value, .. } => value.to_string(),
         }
     }
 }
 
-impl fmt::Display for Expression {
+impl fmt::Display for Expression<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.token_literal())
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Program {
-    pub statements: Vec<Statement>,
+pub struct Program<'p> {
+    pub statements: Vec<Statement<'p>>,
 }
 
-impl Program {
+impl Program<'_> {
     pub fn new() -> Self {
         Self {
             statements: Vec::new(),
@@ -192,20 +178,26 @@ impl Program {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Identifier {
-    pub token: Token,
-    pub value: Cow<'static, str>,
+impl Default for Program<'_> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
-impl fmt::Display for Identifier {
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Identifier<'i> {
+    pub token: Token<'i>,
+    pub value: &'i str,
+}
+
+impl fmt::Display for Identifier<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.token_literal())
     }
 }
 
-impl Identifier {
-    pub fn token_literal(&self) -> String {
-        self.token.literal.clone()
+impl<'i> Identifier<'i> {
+    pub fn token_literal(&self) -> &'i str {
+        self.token.literal
     }
 }

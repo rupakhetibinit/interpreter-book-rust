@@ -20,7 +20,7 @@ fn main() {
                 std::process::exit(0)
             }
 
-            let lexer = Lexer::new(input);
+            let lexer = Lexer::new(&input);
             let mut parser = Parser::new(lexer);
             if let Some(mut program) = parser.parse_program() {
                 if parser.errors.is_empty() {

@@ -1,15 +1,15 @@
 use super::{Token, TokenType};
 
 #[derive(Debug, Clone)]
-pub struct Lexer {
-    input: String,
+pub struct Lexer<'input> {
+    input: &'input str,
     position: usize,
     read_position: usize,
     ch: char,
 }
 
-impl Lexer {
-    pub fn new(input: String) -> Self {
+impl<'a> Lexer<'a> {
+    pub fn new(input: &'a str) -> Self {
         let mut lexer = Lexer {
             input,
             position: 0,
@@ -31,7 +31,7 @@ impl Lexer {
         self.read_position += 1;
     }
 
-    pub fn next_token(&mut self) -> Token {
+    pub fn next_token(&mut self) -> Token<'a> {
         self.skip_whitespace();
 
         let token = match self.ch {
@@ -66,33 +66,36 @@ impl Lexer {
             '\u{0}' => Token::new(TokenType::Eof, ""),
             c if c.is_alphabetic() || c == '_' => {
                 let literal = self.read_identifier();
-                let tok_type = self.lookup_identifier(&literal);
-                return Token::new(tok_type, &literal);
+                let tok_type = self.lookup_identifier(literal);
+                return Token::new(tok_type, literal);
             }
             c if c.is_ascii_digit() => {
                 let literal = self.read_number();
-                return Token::new(TokenType::Int, &literal);
+                return Token::new(TokenType::Int, literal);
             }
-            _ => Token::new(TokenType::Illegal, &self.ch.to_string()),
+            _ => Token::new(
+                TokenType::Illegal,
+                &self.input[self.position..self.position],
+            ),
         };
         self.read_char();
         token
     }
 
-    fn read_identifier(&mut self) -> String {
+    fn read_identifier(&mut self) -> &'a str {
         let start_position = self.position;
         while self.ch.is_alphabetic() || self.ch == '_' {
             self.read_char();
         }
-        self.input[start_position..self.position].to_string()
+        &self.input[start_position..self.position]
     }
 
-    fn read_number(&mut self) -> String {
+    fn read_number(&mut self) -> &'a str {
         let start_position = self.position;
         while self.ch.is_ascii_digit() {
             self.read_char();
         }
-        self.input[start_position..self.position].to_string()
+        &self.input[start_position..self.position]
     }
 
     fn skip_whitespace(&mut self) {
