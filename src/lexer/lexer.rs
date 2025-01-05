@@ -66,7 +66,7 @@ impl<'a> Lexer<'a> {
             '\u{0}' => Token::new(TokenType::Eof, ""),
             c if c.is_alphabetic() || c == '_' => {
                 let literal = self.read_identifier();
-                let tok_type = self.lookup_identifier(&literal);
+                let tok_type = self.lookup_identifier(literal);
                 return Token::new(tok_type, literal);
             }
             c if c.is_ascii_digit() => {
