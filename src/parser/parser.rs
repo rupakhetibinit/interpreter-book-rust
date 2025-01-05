@@ -58,7 +58,6 @@ impl<'a> Parser<'a> {
 
     pub fn parse_return_statement(&mut self) -> Option<Statement<'a>> {
         let token = self.curr_token;
-
         self.next_token();
 
         let value = self.parse_expression_w_precedence(Precedence::Lowest)?;
@@ -98,7 +97,6 @@ impl<'a> Parser<'a> {
 
     pub fn parse_function_literal(&mut self) -> Option<Expression<'a>> {
         let token = self.curr_token;
-
         if !self.expect_peek(TokenType::LParen) {
             return None;
         }
