@@ -121,7 +121,7 @@ impl Expression<'_> {
                 alternative,
                 ..
             } => match alternative {
-                Some(x) => format!("if {} {} else {}", condition, consequence, x,),
+                Some(x) => format!("if {} {{ {} }} else {{ {} }}", condition, consequence, x,),
                 None => format!("if {} {{ {} }}", condition, consequence,),
             },
             Expression::Function {

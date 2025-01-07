@@ -1,5 +1,6 @@
 use core::fmt;
 
+#[derive(Debug, Clone)]
 pub enum Object {
     Int(i64),
     Bool(bool),
@@ -11,7 +12,7 @@ impl fmt::Display for Object {
         match self {
             Object::Int(i) => write!(f, "{}", i),
             Object::Bool(b) => write!(f, "{}", b),
-            Object::Null => write!(f, "null"),
+            Object::Null => write!(f, "nil"),
         }
     }
 }

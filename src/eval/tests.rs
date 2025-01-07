@@ -119,3 +119,31 @@ pub fn test_infix_operators() {
         assert_eq!(format!("{}", actual), format!("{}", expected))
     }
 }
+
+#[test]
+pub fn test_if_expression() {
+    let inputs_expected = [
+        ("if (true) { 10 }", "10"),
+        ("if (false) { 10 }", "nil"),
+        ("if (1) { 10 }", "10"),
+        ("if (1 < 2) { 10 }", "10"),
+        ("if (1 > 2) { 10 }", "nil"),
+        ("if (1 > 2) { 10 } else { 20 }", "20"),
+        ("if (1 < 2) { 10 } else { 20 }", "10"),
+    ];
+
+    for (input, expected) in inputs_expected {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert!(program.is_some());
+        assert!(parser.errors.is_empty());
+
+        let mut program = program.unwrap();
+        let actual = eval_program(&mut program);
+
+        assert_eq!(format!("{}", actual), format!("{}", expected))
+    }
+}

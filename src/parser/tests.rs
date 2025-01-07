@@ -276,6 +276,31 @@ fn test_parse_if_expression() {
 }
 
 #[test]
+fn test_parse_if_else_expression() {
+    let input = "
+            if (x < 5) { 2 + 2; } else { 5 + 5;}
+                ";
+
+    let lexer = Lexer::new(input);
+    let mut parser = Parser::new(lexer);
+    let program = parser.parse_program();
+    assert!(program.is_some());
+    assert!(parser.errors().is_empty(), "Errors while parsing");
+    assert_eq!(
+        program.clone().unwrap().statements.len(),
+        1,
+        "Program statements should have 1 length"
+    );
+
+    let program = program.unwrap();
+    let expression = &program.statements[0];
+    assert_eq!(
+        expression.to_string(),
+        "if (x < 5) { (2 + 2) } else { (5 + 5) }"
+    )
+}
+
+#[test]
 fn test_function_literal() {
     let input = ["fn (x , y) { x + y; }", "fn (x) {}"];
     let expected = ["fn (x , y) { (x + y) }", "fn (x) {  }"];

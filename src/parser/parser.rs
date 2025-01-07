@@ -303,12 +303,21 @@ impl<'a> Parser<'a> {
         }
 
         let consequence = Box::new(self.parse_block_statement());
+        let mut alternative: Option<Box<Statement<'_>>> = None;
+
+        if self.peek_token_is(TokenType::Else) {
+            self.next_token();
+            if !self.expect_peek(TokenType::LBrace) {
+                return None;
+            }
+            alternative = Some(Box::new(self.parse_block_statement()));
+        }
 
         Some(Expression::If {
             token,
             condition,
             consequence,
-            alternative: None,
+            alternative,
         })
     }
 
