@@ -147,3 +147,112 @@ pub fn test_if_expression() {
         assert_eq!(format!("{}", actual), format!("{}", expected))
     }
 }
+
+#[test]
+fn test_return_statements() {
+    let inputs_expected = [
+        ("return 10;", 10),
+        ("return 10;", 10),
+        ("return 10; 9;", 10),
+        ("return 2 * 5; 9;", 10),
+        ("9; return 2 * 5; 9;", 10),
+        (
+            r#"if (10 > 1) {
+        if (10 > 1) {
+        return 10;
+        }
+        129
+        return 1;
+        }"#,
+            10,
+        ),
+    ];
+
+    for (input, expected) in inputs_expected {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+
+        let program = parser.parse_program();
+
+        assert!(program.is_some());
+        assert!(parser.errors.is_empty());
+
+        let mut program = program.unwrap();
+        dbg!(program.clone());
+        let actual = eval_program(&mut program);
+
+        assert_eq!(format!("{}", actual), format!("{}", expected))
+    }
+}
+
+#[test]
+fn test_early_returns() {
+    let inputs_expected = [
+        (
+            r#"if (10 > 1) {
+                    if (10 > 1) {
+                        return 10;
+                    }
+                    129;
+                    return 1;
+                }"#,
+            10,
+        ),
+        (
+            r#"
+                if (5 > 2) {
+                    if (10 > 1) {
+                        if (3 > 1) {
+                            return 15;
+                        }
+                        return 10;
+                    }
+                    return 5;
+                }
+                return 0;
+                "#,
+            15,
+        ),
+        (
+            r#"
+                if (5 < 2) {
+                    return 1;
+                } else {
+                    if (10 > 5) {
+                        return 2;
+                    } else {
+                        return 3;
+                    }
+                    return 4;  // This should never be reached
+                }
+                return 5;  // This should never be reached
+                "#,
+            2,
+        ),
+    ];
+
+    for (input, expected) in inputs_expected {
+        let lexer = Lexer::new(input);
+        let mut parser = Parser::new(lexer);
+        let program = parser.parse_program();
+
+        assert!(program.is_some(), "Failed to parse program: {}", input);
+        assert!(
+            parser.errors.is_empty(),
+            "Parser errors for input: {}",
+            input
+        );
+
+        let mut program = program.unwrap();
+        let actual = eval_program(&mut program);
+
+        assert_eq!(
+            format!("{}", actual),
+            format!("{}", expected),
+            "Test failed for input:\n{}\nExpected {}, got {}",
+            input,
+            expected,
+            actual
+        );
+    }
+}

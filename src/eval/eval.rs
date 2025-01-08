@@ -1,11 +1,14 @@
-use super::object::{self, Object};
+use super::object::Object;
 use crate::ast::{Program, Statement, ast};
 
 pub fn eval(node: ast::Statement) -> Option<Object> {
     match node {
         ast::Statement::Let { token, name, value } => Some(todo!()),
-        ast::Statement::Return { token, value } => Some(todo!()),
-        ast::Statement::Block { statements, .. } => Some(eval_statements(&statements)),
+        ast::Statement::Return { value, .. } => {
+            let val = eval(Statement::Expression(value));
+            Some(Object::ReturnValue(Box::new(val)))
+        }
+        ast::Statement::Block { statements, .. } => Some(eval_block_statement(&statements)),
         ast::Statement::Expression(expression) => match expression {
             ast::Expression::Integer { value, .. } => Some(Object::Int(value)),
             ast::Expression::Boolean { value, .. } => Some(Object::Bool(value)),
@@ -26,10 +29,10 @@ pub fn eval(node: ast::Statement) -> Option<Object> {
                 eval_infix_expression(operator, lt, rt)
             }
             ast::Expression::If {
-                token,
                 condition,
                 consequence,
                 alternative,
+                ..
             } => eval_if_expression(condition, consequence, alternative),
             ast::Expression::Function {
                 token,
@@ -47,24 +50,32 @@ pub fn eval(node: ast::Statement) -> Option<Object> {
     }
 }
 
+fn eval_block_statement(statements: &[Statement<'_>]) -> Object {
+    let mut result = Some(Object::Null);
+
+    for stmt in statements.iter() {
+        let res = eval(stmt.clone());
+        match res {
+            Some(obj @ Object::ReturnValue(_)) => return obj,
+            Some(obj) => result = Some(obj),
+            None => continue,
+        }
+    }
+    result.unwrap()
+}
+
 fn eval_if_expression(
     condition: Box<ast::Expression<'_>>,
     consequence: Box<Statement<'_>>,
     alternative: Option<Box<Statement<'_>>>,
 ) -> Option<Object> {
     let condition = eval(Statement::Expression(*condition))?;
-    println!("condition is {}", condition);
-
-    let result: Option<Object>;
 
     if is_truthy(condition) {
-        result = eval(*consequence)
-    } else if alternative.is_some() {
-        result = eval(*alternative.unwrap())
+        eval(*consequence)
     } else {
-        result = None
+        alternative.map(|alt| eval(*alt)).unwrap_or(None)
     }
-    result
 }
 
 fn is_truthy(object: Object) -> bool {
@@ -99,26 +110,28 @@ fn eval_integer_infix_operation(operator: &str, l: i64, r: i64) -> Option<Object
 
 pub fn eval_program(program: &mut Program) -> Object {
     let mut result = Some(Object::Null);
+
     for stmt in program.statements.iter() {
-        result = eval(stmt.clone())
+        let return_value = eval(stmt.clone());
+        if let Some(Object::ReturnValue(_)) = return_value {
+            return return_value.unwrap();
+        }
+        result = return_value;
     }
-    match result {
-        Some(x) => x,
-        None => Object::Null,
-    }
+
+    result.unwrap_or(Object::Null)
 }
 
-pub fn eval_statements(statements: &[Statement]) -> Object {
-    let mut result = Some(Object::Null);
-    for stmt in statements.iter() {
-        result = eval(stmt.clone());
-        println!("result is {:?}", result);
-    }
-    match result {
-        Some(x) => x,
-        None => Object::Null,
-    }
-}
+// pub fn eval_statements(statements: &[Statement]) -> Object {
+//     let mut result = Some(Object::Null);
+//     for stmt in statements.iter() {
+//         result = eval(stmt.clone());
+//     }
+//     match result {
+//         Some(x) => x,
+//         None => Object::Null,
+//     }
+// }
 
 pub fn eval_prefix_expression(operator: &str, right: Object) -> Option<Object> {
     match operator {
@@ -140,5 +153,6 @@ fn eval_bang_operator_expression(right: Object) -> Object {
         Object::Bool(r) => Object::Bool(!r),
         Object::Int(_) => Object::Bool(false),
         Object::Null => Object::Bool(true),
+        _ => Object::Null,
     }
 }
