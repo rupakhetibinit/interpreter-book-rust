@@ -37,9 +37,8 @@ pub enum TokenType {
     NotSet,
 }
 
-
 #[derive(Debug, Eq, PartialEq, Clone, Default, Copy)]
-pub struct Token<'a> {
+struct Token<'a> {
     pub token_type: TokenType,
     pub literal: &'a str,
 }

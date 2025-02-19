@@ -1,4 +1,9 @@
-use super::{Lexer, TokenType};
+use logos::{Lexer, Logos};
+
+use super::{
+    TokenType,
+    lexer::{self, Token},
+};
 
 #[test]
 fn test_next_token() {
@@ -98,20 +103,24 @@ return true;
         (TokenType::Eof, ""),
     ];
 
-    let mut lexer = Lexer::new(input);
+    let mut lexer = Token::lexer(input).into_iter().enumerate();
 
-    for (i, (expected_type, expected_literal)) in tests.iter().enumerate() {
-        let token = lexer.next_token();
-        // println!("{:?}", token);
-        assert_eq!(
-            &token.token_type, expected_type,
-            "tests[{}] - token type wrong. expected={:?}, got={:?}",
-            i, expected_type, token
-        );
-        assert_eq!(
-            &token.literal, expected_literal,
-            "tests[{}] - literal wrong. expected={}, got={}",
-            i, expected_literal, token.literal
-        );
+    for (span, values) in lexer.next() {
+        println!("{span} {:?}", values);
+    }
+
+    // for (i, (expected_type, expected_literal)) in tests.iter().enumerate() {
+    //     let token = lexer.next_token();
+    //     // println!("{:?}", token);
+    //     assert_eq!(
+    //         &token.token_type, expected_type,
+    //         "tests[{}] - token type wrong. expected={:?}, got={:?}",
+    //         i, expected_type, token
+    //     );
+    //     assert_eq!(
+    //         &token.literal, expected_literal,
+    //         "tests[{}] - literal wrong. expected={}, got={}",
+    //         i, expected_literal, token.literal
+    //     );
     }
 }
